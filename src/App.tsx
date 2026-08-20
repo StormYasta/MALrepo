@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, Star, X } from 'lucide-react'
+import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, X } from 'lucide-react'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
 import type { AnimeItem, SortDirection, SortKey, WatchStatus } from './types'
@@ -23,7 +23,7 @@ function App() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [source, setSource] = useState<'demo' | 'jikan'>('demo')
+  const [source, setSource] = useState<'demo' | 'mal'>('demo')
 
   const genres = useMemo(() => [...new Set(anime.flatMap((item) => item.genres))].sort(), [anime])
 
@@ -58,7 +58,7 @@ function App() {
       const { username, items } = await fetchUserAnimeList(listInput)
       setAnime(items)
       setLoadedUsername(username)
-      setSource('jikan')
+      setSource('mal')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar a lista.')
     } finally {
@@ -89,14 +89,14 @@ function App() {
           <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="StormYasta ou https://myanimelist.net/animelist/StormYasta" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
           <button className="primary" onClick={loadList} disabled={loading}>{loading ? <LoaderCircle className="spin" size={18}/> : null}{loading ? 'Carregando lista...' : 'Carregar lista'}</button>
           {error && <div className="error">{error}</div>}
-          <p className="hint">Sem login e sem Client ID. A leitura é feita pela Jikan e funciona apenas com listas públicas.</p>
+          <p className="hint">Sem login e sem Client ID. A leitura usa somente os dados públicos da lista do MyAnimeList.</p>
         </div>
       </section>
 
       <section className="workspace">
         <div className="workspace-title"><div><h2>Minha lista</h2><span><b>{filtered.length}</b> de {anime.length} títulos · {source === 'demo' ? 'Modo demonstração' : `Lista de ${loadedUsername}`}</span></div><button className="clear" onClick={clearFilters}><X size={15}/> Limpar filtros</button></div>
         <div className="toolbar">
-          <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar título, gênero ou tema..."/></div>
+          <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar título, gênero ou tag..."/></div>
           <div className="filter-label"><SlidersHorizontal size={17}/> Filtros</div>
           <select value={genre} onChange={(e) => setGenre(e.target.value)}><option value="all">Todos os gêneros</option>{genres.map((g) => <option key={g}>{g}</option>)}</select>
           <select value={status} onChange={(e) => setStatus(e.target.value as 'all' | WatchStatus)}><option value="all">Todos os status</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
@@ -108,15 +108,15 @@ function App() {
         </div>
 
         <div className="table-wrap"><table><thead><tr>
-          <th>Anime</th><SortHead label="Ano" value="year" current={sortKey} onClick={changeSort}/><SortHead label="Episódios" value="episodes" current={sortKey} onClick={changeSort}/><th>Gêneros / temas</th><SortHead label="Nota MAL" value="meanScore" current={sortKey} onClick={changeSort}/><SortHead label="Minha nota" value="userScore" current={sortKey} onClick={changeSort}/><SortHead label="Progresso" value="progress" current={sortKey} onClick={changeSort}/><th>Status</th><th></th>
+          <th>Anime</th><SortHead label="Ano" value="year" current={sortKey} onClick={changeSort}/><SortHead label="Episódios" value="episodes" current={sortKey} onClick={changeSort}/><th>Gêneros / tags</th><SortHead label="Minha nota" value="userScore" current={sortKey} onClick={changeSort}/><SortHead label="Progresso" value="progress" current={sortKey} onClick={changeSort}/><th>Status</th><th></th>
         </tr></thead><tbody>{filtered.map((item) => <tr key={item.id}>
           <td><div className="anime-cell">{item.image ? <img src={item.image} alt=""/> : <div className="poster-placeholder"/>}<div><strong>{item.title}</strong><small>{item.startDate ?? 'Data desconhecida'}</small></div></div></td>
-          <td>{item.year ?? '—'}</td><td>{item.episodes ?? '—'}</td><td><div className="tags">{item.genres.slice(0,3).map((g) => <span key={g}>{g}</span>)}{item.themes.slice(0,1).map((t) => <span className="theme" key={t}>{t}</span>)}</div></td>
-          <td><span className="score"><Star size={14} fill="currentColor"/>{item.meanScore?.toFixed(2) ?? '—'}</span></td><td><b className="user-score">{item.userScore || '—'}</b></td><td><span className="progress">{item.watchedEpisodes}/{item.episodes ?? '?'}</span></td><td><span className={`status ${item.status}`}>{statusLabels[item.status]}</span></td><td><a href={item.url} target="_blank" rel="noreferrer" className="open"><ExternalLink size={16}/></a></td>
-        </tr>)}{filtered.length === 0 && <tr><td colSpan={9} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
+          <td>{item.year ?? '—'}</td><td>{item.episodes ?? '—'}</td><td><div className="tags">{item.genres.slice(0,3).map((g) => <span key={g}>{g}</span>)}{item.themes.slice(0,2).map((t) => <span className="theme" key={t}>{t}</span>)}</div></td>
+          <td><b className="user-score">{item.userScore || '—'}</b></td><td><span className="progress">{item.watchedEpisodes}/{item.episodes ?? '?'}</span></td><td><span className={`status ${item.status}`}>{statusLabels[item.status]}</span></td><td><a href={item.url} target="_blank" rel="noreferrer" className="open"><ExternalLink size={16}/></a></td>
+        </tr>)}{filtered.length === 0 && <tr><td colSpan={8} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
       </section>
     </main>
-    <footer>MAL Sheet · MVP client-side para GitHub Pages · Dados via Jikan / MyAnimeList.</footer>
+    <footer>MAL Sheet · MVP client-side para GitHub Pages · Dados públicos do MyAnimeList.</footer>
   </div>
 }
 
