@@ -1,61 +1,131 @@
 import type { AnimeItem, WatchStatus } from './types'
 
-const API = 'https://api.myanimelist.net/v2'
-const fields = 'id,title,main_picture,start_date,num_episodes,genres,mean,my_list_status'
+const API = 'https://api.jikan.moe/v4'
 
-type MalNode = {
-  id: number
+type JikanNamedResource = { mal_id?: number; name?: string }
+
+type JikanAnime = {
+  mal_id: number
   title: string
-  main_picture?: { medium?: string; large?: string }
-  start_date?: string
-  num_episodes?: number
-  genres?: Array<{ id: number; name: string }>
-  mean?: number
-  my_list_status?: { status: WatchStatus; score: number; num_episodes_watched: number }
+  url?: string
+  images?: {
+    jpg?: { image_url?: string; small_image_url?: string; large_image_url?: string }
+    webp?: { image_url?: string; small_image_url?: string; large_image_url?: string }
+  }
+  aired?: { from?: string | null }
+  year?: number | null
+  episodes?: number | null
+  score?: number | null
+  genres?: JikanNamedResource[]
+  explicit_genres?: JikanNamedResource[]
+  themes?: JikanNamedResource[]
+  demographics?: JikanNamedResource[]
 }
 
-type MalListResponse = {
-  data: Array<{ node: MalNode }>
-  paging?: { next?: string }
+type JikanListEntry = {
+  watching_status?: number
+  status?: string
+  score?: number
+  episodes_watched?: number
+  anime: JikanAnime
 }
 
-function normalize(node: MalNode): AnimeItem {
-  return {
-    id: node.id,
-    title: node.title,
-    image: node.main_picture?.large ?? node.main_picture?.medium ?? '',
-    startDate: node.start_date ?? null,
-    year: node.start_date ? Number(node.start_date.slice(0, 4)) : null,
-    episodes: node.num_episodes || null,
-    genres: node.genres?.map((genre) => genre.name) ?? [],
-    themes: [],
-    meanScore: node.mean ?? null,
-    userScore: node.my_list_status?.score ?? null,
-    status: node.my_list_status?.status ?? 'plan_to_watch',
-    watchedEpisodes: node.my_list_status?.num_episodes_watched ?? 0,
-    url: `https://myanimelist.net/anime/${node.id}`,
+type JikanResponse = {
+  data: JikanListEntry[]
+  pagination?: {
+    has_next_page?: boolean
+    current_page?: number
+    last_visible_page?: number
   }
 }
 
-export async function fetchUserAnimeList(username: string, clientId: string): Promise<AnimeItem[]> {
-  if (!username.trim()) throw new Error('Informe um usuário do MyAnimeList.')
-  if (!clientId.trim()) throw new Error('Informe seu MAL Client ID.')
+const statusByNumber: Record<number, WatchStatus> = {
+  1: 'watching',
+  2: 'completed',
+  3: 'on_hold',
+  4: 'dropped',
+  6: 'plan_to_watch',
+}
 
-  let url: string | undefined = `${API}/users/${encodeURIComponent(username.trim())}/animelist?limit=1000&fields=${encodeURIComponent(fields)}`
+function normalizeStatus(entry: JikanListEntry): WatchStatus {
+  if (entry.status === 'watching' || entry.status === 'completed' || entry.status === 'on_hold' || entry.status === 'dropped' || entry.status === 'plan_to_watch') {
+    return entry.status
+  }
+  return statusByNumber[entry.watching_status ?? 6] ?? 'plan_to_watch'
+}
+
+function names(resources?: JikanNamedResource[]): string[] {
+  return resources?.map((item) => item.name).filter((name): name is string => Boolean(name)) ?? []
+}
+
+function normalize(entry: JikanListEntry): AnimeItem {
+  const anime = entry.anime
+  const startDate = anime.aired?.from ?? null
+  const genres = [...new Set([
+    ...names(anime.genres),
+    ...names(anime.explicit_genres),
+    ...names(anime.demographics),
+  ])]
+
+  return {
+    id: anime.mal_id,
+    title: anime.title,
+    image: anime.images?.webp?.large_image_url ?? anime.images?.jpg?.large_image_url ?? anime.images?.webp?.image_url ?? anime.images?.jpg?.image_url ?? '',
+    startDate,
+    year: anime.year ?? (startDate ? Number(startDate.slice(0, 4)) : null),
+    episodes: anime.episodes ?? null,
+    genres,
+    themes: names(anime.themes),
+    meanScore: anime.score ?? null,
+    userScore: entry.score && entry.score > 0 ? entry.score : null,
+    status: normalizeStatus(entry),
+    watchedEpisodes: entry.episodes_watched ?? 0,
+    url: anime.url ?? `https://myanimelist.net/anime/${anime.mal_id}`,
+  }
+}
+
+export function extractMalUsername(input: string): string {
+  const value = input.trim()
+  if (!value) return ''
+
+  try {
+    const url = new URL(value)
+    const parts = url.pathname.split('/').filter(Boolean)
+    if (parts[0] === 'animelist' && parts[1]) return decodeURIComponent(parts[1])
+    if (parts[0] === 'profile' && parts[1]) return decodeURIComponent(parts[1])
+  } catch {
+    // Not a URL; treat the value as a username.
+  }
+
+  return value.replace(/^@/, '').trim()
+}
+
+export async function fetchUserAnimeList(input: string): Promise<{ username: string; items: AnimeItem[] }> {
+  const username = extractMalUsername(input)
+  if (!username) throw new Error('Informe o usuário ou cole o link da sua lista do MyAnimeList.')
+
   const result: AnimeItem[] = []
+  let page = 1
 
-  while (url) {
-    const response = await fetch(url, { headers: { 'X-MAL-CLIENT-ID': clientId.trim() } })
+  while (true) {
+    const url = `${API}/users/${encodeURIComponent(username)}/animelist?page=${page}`
+    const response = await fetch(url)
+
     if (!response.ok) {
-      if (response.status === 404) throw new Error('Usuário não encontrado ou lista indisponível.')
-      if (response.status === 401 || response.status === 403) throw new Error('Client ID inválido ou acesso não autorizado.')
-      throw new Error(`A API do MyAnimeList respondeu com erro ${response.status}.`)
+      if (response.status === 404) throw new Error('Usuário não encontrado ou a lista não está pública.')
+      if (response.status === 429) throw new Error('A Jikan atingiu o limite de requisições. Aguarde alguns segundos e tente novamente.')
+      throw new Error(`A Jikan respondeu com erro ${response.status}.`)
     }
 
-    const page = (await response.json()) as MalListResponse
-    result.push(...page.data.map(({ node }) => normalize(node)))
-    url = page.paging?.next
+    const data = (await response.json()) as JikanResponse
+    result.push(...data.data.map(normalize))
+
+    if (!data.pagination?.has_next_page) break
+    page += 1
+
+    // Jikan allows 3 requests/second. Keep a small safety margin between pages.
+    await new Promise((resolve) => window.setTimeout(resolve, 400))
   }
 
-  return result
+  return { username, items: result }
 }
