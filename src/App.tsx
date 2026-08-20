@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, Star, X } from 'lucide-react'
+import { fetchAnimeMeanScore } from './jikanScores'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
 import type { AnimeItem, SortDirection, SortKey, WatchStatus } from './types'
@@ -26,6 +27,10 @@ function App() {
   const [source, setSource] = useState<'demo' | 'mal'>('demo')
 
   const genres = useMemo(() => [...new Set(anime.flatMap((item) => item.genres))].sort(), [anime])
+
+  const updateMeanScore = useCallback((id: number, meanScore: number) => {
+    setAnime((current) => current.map((item) => item.id === id ? { ...item, meanScore } : item))
+  }, [])
 
   const filtered = useMemo(() => {
     const result = anime.filter((item) => {
@@ -89,7 +94,7 @@ function App() {
           <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="StormYasta ou https://myanimelist.net/animelist/StormYasta" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
           <button className="primary" onClick={loadList} disabled={loading}>{loading ? <LoaderCircle className="spin" size={18}/> : null}{loading ? 'Carregando lista...' : 'Carregar lista'}</button>
           {error && <div className="error">{error}</div>}
-          <p className="hint">Sem login e sem Client ID. A leitura usa somente os dados públicos da lista do MyAnimeList.</p>
+          <p className="hint">Sem login e sem Client ID. A lista usa os dados públicos do MAL; a Nota MAL é enriquecida pela Jikan conforme os itens aparecem na tela.</p>
         </div>
       </section>
 
@@ -108,16 +113,42 @@ function App() {
         </div>
 
         <div className="table-wrap"><table><thead><tr>
-          <th>Anime</th><SortHead label="Ano" value="year" current={sortKey} onClick={changeSort}/><SortHead label="Episódios" value="episodes" current={sortKey} onClick={changeSort}/><th>Gêneros / tags</th><SortHead label="Minha nota" value="userScore" current={sortKey} onClick={changeSort}/><SortHead label="Progresso" value="progress" current={sortKey} onClick={changeSort}/><th>Status</th><th></th>
+          <th>Anime</th><SortHead label="Ano" value="year" current={sortKey} onClick={changeSort}/><SortHead label="Episódios" value="episodes" current={sortKey} onClick={changeSort}/><th>Gêneros / tags</th><SortHead label="Nota MAL" value="meanScore" current={sortKey} onClick={changeSort}/><SortHead label="Minha nota" value="userScore" current={sortKey} onClick={changeSort}/><SortHead label="Progresso" value="progress" current={sortKey} onClick={changeSort}/><th>Status</th><th></th>
         </tr></thead><tbody>{filtered.map((item) => <tr key={item.id}>
           <td><div className="anime-cell">{item.image ? <img src={item.image} alt=""/> : <div className="poster-placeholder"/>}<div><strong>{item.title}</strong><small>{item.startDate ?? 'Data desconhecida'}</small></div></div></td>
           <td>{item.year ?? '—'}</td><td>{item.episodes ?? '—'}</td><td><div className="tags">{item.genres.slice(0,3).map((g) => <span key={g}>{g}</span>)}{item.themes.slice(0,2).map((t) => <span className="theme" key={t}>{t}</span>)}</div></td>
-          <td><b className="user-score">{item.userScore || '—'}</b></td><td><span className="progress">{item.watchedEpisodes}/{item.episodes ?? '?'}</span></td><td><span className={`status ${item.status}`}>{statusLabels[item.status]}</span></td><td><a href={item.url} target="_blank" rel="noreferrer" className="open"><ExternalLink size={16}/></a></td>
-        </tr>)}{filtered.length === 0 && <tr><td colSpan={8} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
+          <td><MalScoreCell item={item} onScore={updateMeanScore}/></td><td><b className="user-score">{item.userScore || '—'}</b></td><td><span className="progress">{item.watchedEpisodes}/{item.episodes ?? '?'}</span></td><td><span className={`status ${item.status}`}>{statusLabels[item.status]}</span></td><td><a href={item.url} target="_blank" rel="noreferrer" className="open"><ExternalLink size={16}/></a></td>
+        </tr>)}{filtered.length === 0 && <tr><td colSpan={9} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
       </section>
     </main>
-    <footer>MAL Sheet · MVP client-side para GitHub Pages · Dados públicos do MyAnimeList.</footer>
+    <footer>MAL Sheet · MVP client-side para GitHub Pages · Lista via MyAnimeList · Notas via Jikan.</footer>
   </div>
+}
+
+function MalScoreCell({ item, onScore }: { item: AnimeItem; onScore: (id: number, score: number) => void }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const requested = useRef(false)
+
+  useEffect(() => {
+    if (item.meanScore !== null || requested.current) return
+    const element = ref.current
+    if (!element) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      requested.current = true
+
+      void fetchAnimeMeanScore(item.id).then((score) => {
+        if (score !== null) onScore(item.id, score)
+      })
+    }, { rootMargin: '250px' })
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [item.id, item.meanScore, onScore])
+
+  return <span ref={ref} className="score"><Star size={14} fill="currentColor"/>{item.meanScore?.toFixed(2) ?? '—'}</span>
 }
 
 function SortHead({ label, value, current, onClick }: { label: string; value: SortKey; current: SortKey; onClick: (key: SortKey) => void }) {
