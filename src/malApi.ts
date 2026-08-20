@@ -1,6 +1,5 @@
 import type { AnimeItem, WatchStatus } from './types'
 
-const CORS_PROXY = 'https://corsproxy.io/?url='
 const PAGE_SIZE = 300
 
 type MalNamedResource = { name?: string }
@@ -98,25 +97,44 @@ function normalize(entry: MalListEntry): AnimeItem | null {
   }
 }
 
+function proxyUrls(targetUrl: string): string[] {
+  return [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://proxy.cors.sh/${targetUrl}`,
+  ]
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, { signal: controller.signal })
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 async function fetchMalPage(targetUrl: string): Promise<MalListEntry[]> {
   let lastStatus = 0
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const response = await fetch(`${CORS_PROXY}${encodeURIComponent(targetUrl)}`)
-      lastStatus = response.status
+    for (const proxyUrl of proxyUrls(targetUrl)) {
+      try {
+        const response = await fetchWithTimeout(proxyUrl)
+        lastStatus = response.status
 
-      if (response.ok) {
-        const data = await response.json()
-        if (!Array.isArray(data)) throw new Error('O MyAnimeList retornou uma resposta inesperada.')
-        return data as MalListEntry[]
-      }
+        if (response.ok) {
+          const data = await response.json()
+          if (!Array.isArray(data)) continue
+          return data as MalListEntry[]
+        }
 
-      const retryable = response.status === 408 || response.status === 429 || response.status >= 500
-      if (!retryable) break
-    } catch (error) {
-      if (attempt === 2) {
-        throw error instanceof Error ? error : new Error('Falha de rede ao consultar o MyAnimeList.')
+        // A proxy can reject a target that another proxy accepts, so try the next provider.
+        if (response.status === 403 || response.status === 429 || response.status >= 500) continue
+      } catch {
+        // Certificate, DNS, timeout and CORS failures are provider-specific. Try the fallback.
+        continue
       }
     }
 
@@ -126,7 +144,7 @@ async function fetchMalPage(targetUrl: string): Promise<MalListEntry[]> {
   if (lastStatus === 404) throw new Error('Usuário não encontrado ou lista indisponível.')
   if (lastStatus === 403) throw new Error('A lista não pôde ser acessada. Confirme se ela está pública.')
   if (lastStatus === 429) throw new Error('Muitas consultas em sequência. Aguarde alguns segundos e tente novamente.')
-  throw new Error(`Não foi possível carregar a lista pública do MyAnimeList${lastStatus ? ` (erro ${lastStatus})` : ''}. Tente novamente em alguns segundos.`)
+  throw new Error('Não foi possível acessar a lista pública do MyAnimeList pelos proxies disponíveis. Tente novamente em alguns segundos.')
 }
 
 export function extractMalUsername(input: string): string {
