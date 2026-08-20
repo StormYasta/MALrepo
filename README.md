@@ -1,13 +1,16 @@
 # MAL Sheet
 
-MVP client-side para explorar uma lista do MyAnimeList como uma planilha pesquisável e filtrável.
+MVP client-side para explorar uma lista pública do MyAnimeList como uma planilha pesquisável e filtrável.
 
 ## Funcionalidades
 
 - Pesquisa por título, gênero e tema
 - Filtros por ano, gênero, status, número máximo de episódios e nota do usuário
 - Ordenação por ano, episódios, notas e progresso
-- Integração client-side com a API v2 do MyAnimeList usando `X-MAL-CLIENT-ID`
+- Integração client-side com a Jikan API v4
+- Aceita username ou URL da lista do MyAnimeList
+- Sem login, Client ID ou Client Secret
+- Paginação automática para carregar a lista inteira
 - Modo demonstração sem configuração
 - Layout responsivo
 - Deploy automático no GitHub Pages
@@ -19,11 +22,21 @@ npm install
 npm run dev
 ```
 
-## API do MyAnimeList
+## Carregar uma lista
 
-Crie uma aplicação no painel de API do MyAnimeList e informe o Client ID na própria interface. O MVP salva o Client ID somente no `localStorage` do navegador; ele não é gravado no repositório.
+Na interface, informe apenas o username do MyAnimeList:
 
-Como o projeto é 100% estático, não coloque Client Secret, access token privado ou outra credencial sensível no código.
+```text
+StormYasta
+```
+
+ou cole a URL completa da lista:
+
+```text
+https://myanimelist.net/animelist/StormYasta
+```
+
+A aplicação extrai o username e consulta a lista pública usando a Jikan. Não há credenciais armazenadas no navegador nem no repositório.
 
 ## GitHub Pages
 
@@ -31,6 +44,8 @@ O workflow em `.github/workflows/deploy.yml` gera o projeto e publica a pasta `d
 
 A URL esperada é `https://stormyasta.github.io/MALrepo/`.
 
-## Limitação do MVP
+## Limitações
 
-A lista oficial fornece gêneros através dos campos solicitados. O campo de temas/subgêneros está preparado no modelo da aplicação, mas o carregamento via API deixa esse campo vazio por enquanto; uma evolução pode enriquecer os itens com detalhes adicionais por anime.
+- A lista do usuário precisa estar pública.
+- A Jikan é somente leitura e possui limites de requisições.
+- Alguns metadados dependem do que estiver disponível no retorno da Jikan para a lista do usuário.
