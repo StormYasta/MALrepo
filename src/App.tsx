@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownUp, ExternalLink, Filter, Github, LoaderCircle, Search, SlidersHorizontal, Star, X } from 'lucide-react'
+import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, Star, X } from 'lucide-react'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
 import type { AnimeItem, SortDirection, SortKey, WatchStatus } from './types'
@@ -74,7 +74,7 @@ function App() {
   return <div className="app">
     <header>
       <div className="brand"><div className="logo">M</div><div><strong>MAL Sheet</strong><span>Sua lista, do seu jeito.</span></div></div>
-      <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer"><Github size={18}/> GitHub</a>
+      <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer">GitHub</a>
     </header>
 
     <main>
