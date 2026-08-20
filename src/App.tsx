@@ -10,8 +10,8 @@ const statusLabels: Record<WatchStatus, string> = {
 
 function App() {
   const [anime, setAnime] = useState<AnimeItem[]>(mockAnime)
-  const [username, setUsername] = useState('')
-  const [clientId, setClientId] = useState(localStorage.getItem('mal-client-id') ?? '')
+  const [listInput, setListInput] = useState('')
+  const [loadedUsername, setLoadedUsername] = useState('')
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('all')
   const [status, setStatus] = useState<'all' | WatchStatus>('all')
@@ -23,7 +23,7 @@ function App() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [source, setSource] = useState<'demo' | 'mal'>('demo')
+  const [source, setSource] = useState<'demo' | 'jikan'>('demo')
 
   const genres = useMemo(() => [...new Set(anime.flatMap((item) => item.genres))].sort(), [anime])
 
@@ -52,14 +52,18 @@ function App() {
   }, [anime, search, genre, status, yearFrom, yearTo, episodesMax, scoreMin, sortKey, sortDirection])
 
   async function loadList() {
-    setLoading(true); setError('')
+    setLoading(true)
+    setError('')
     try {
-      const data = await fetchUserAnimeList(username, clientId)
-      localStorage.setItem('mal-client-id', clientId)
-      setAnime(data); setSource('mal')
+      const { username, items } = await fetchUserAnimeList(listInput)
+      setAnime(items)
+      setLoadedUsername(username)
+      setSource('jikan')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar a lista.')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   function clearFilters() {
@@ -79,18 +83,18 @@ function App() {
 
     <main>
       <section className="hero">
-        <div><span className="eyebrow">MYANIMELIST EXPLORER</span><h1>Encontre o próximo anime<br/><em>sem perder tempo.</em></h1><p>Transforme sua lista do MyAnimeList em uma tabela poderosa, pesquisável e filtrável.</p></div>
+        <div><span className="eyebrow">MYANIMELIST EXPLORER</span><h1>Encontre o próximo anime<br/><em>sem perder tempo.</em></h1><p>Transforme sua lista pública do MyAnimeList em uma tabela poderosa, pesquisável e filtrável.</p></div>
         <div className="connect-card">
-          <label>Usuário do MyAnimeList</label><input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ex: StormYasta" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
-          <label>MAL Client ID <small>(fica somente neste navegador)</small></label><input type="password" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Cole seu Client ID" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
-          <button className="primary" onClick={loadList} disabled={loading}>{loading ? <LoaderCircle className="spin" size={18}/> : null}{loading ? 'Carregando...' : 'Carregar minha lista'}</button>
+          <label>Usuário ou link da lista do MyAnimeList</label>
+          <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="StormYasta ou https://myanimelist.net/animelist/StormYasta" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
+          <button className="primary" onClick={loadList} disabled={loading}>{loading ? <LoaderCircle className="spin" size={18}/> : null}{loading ? 'Carregando lista...' : 'Carregar lista'}</button>
           {error && <div className="error">{error}</div>}
-          <p className="hint">O MVP começa com dados de demonstração. Para usar a API oficial, informe um Client ID do MAL.</p>
+          <p className="hint">Sem login e sem Client ID. A leitura é feita pela Jikan e funciona apenas com listas públicas.</p>
         </div>
       </section>
 
       <section className="workspace">
-        <div className="workspace-title"><div><h2>Minha lista</h2><span><b>{filtered.length}</b> de {anime.length} títulos · {source === 'demo' ? 'Modo demonstração' : `Lista de ${username}`}</span></div><button className="clear" onClick={clearFilters}><X size={15}/> Limpar filtros</button></div>
+        <div className="workspace-title"><div><h2>Minha lista</h2><span><b>{filtered.length}</b> de {anime.length} títulos · {source === 'demo' ? 'Modo demonstração' : `Lista de ${loadedUsername}`}</span></div><button className="clear" onClick={clearFilters}><X size={15}/> Limpar filtros</button></div>
         <div className="toolbar">
           <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar título, gênero ou tema..."/></div>
           <div className="filter-label"><SlidersHorizontal size={17}/> Filtros</div>
@@ -112,7 +116,7 @@ function App() {
         </tr>)}{filtered.length === 0 && <tr><td colSpan={9} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
       </section>
     </main>
-    <footer>MAL Sheet · MVP client-side para GitHub Pages · Dados pertencem ao MyAnimeList.</footer>
+    <footer>MAL Sheet · MVP client-side para GitHub Pages · Dados via Jikan / MyAnimeList.</footer>
   </div>
 }
 
