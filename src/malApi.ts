@@ -1,42 +1,24 @@
 import type { AnimeItem, WatchStatus } from './types'
 
-const API = 'https://api.jikan.moe/v4'
+const CORS_PROXY = 'https://corsproxy.io/?url='
+const PAGE_SIZE = 300
 
-type JikanNamedResource = { mal_id?: number; name?: string }
+type MalNamedResource = { name?: string }
+type MalSeason = { year?: number | string }
 
-type JikanAnime = {
-  mal_id: number
-  title: string
-  url?: string
-  images?: {
-    jpg?: { image_url?: string; small_image_url?: string; large_image_url?: string }
-    webp?: { image_url?: string; small_image_url?: string; large_image_url?: string }
-  }
-  aired?: { from?: string | null }
-  year?: number | null
-  episodes?: number | null
-  score?: number | null
-  genres?: JikanNamedResource[]
-  explicit_genres?: JikanNamedResource[]
-  themes?: JikanNamedResource[]
-  demographics?: JikanNamedResource[]
-}
-
-type JikanListEntry = {
-  watching_status?: number
-  status?: string
+type MalListEntry = {
+  status?: number
   score?: number
-  episodes_watched?: number
-  anime: JikanAnime
-}
-
-type JikanResponse = {
-  data: JikanListEntry[]
-  pagination?: {
-    has_next_page?: boolean
-    current_page?: number
-    last_visible_page?: number
-  }
+  tags?: unknown
+  num_watched_episodes?: number
+  anime_title?: string
+  anime_num_episodes?: number
+  anime_id?: number
+  anime_image_path?: string
+  anime_url?: string
+  anime_start_date_string?: string | null
+  anime_season?: MalSeason | null
+  genres?: unknown
 }
 
 const statusByNumber: Record<number, WatchStatus> = {
@@ -47,41 +29,104 @@ const statusByNumber: Record<number, WatchStatus> = {
   6: 'plan_to_watch',
 }
 
-function normalizeStatus(entry: JikanListEntry): WatchStatus {
-  if (entry.status === 'watching' || entry.status === 'completed' || entry.status === 'on_hold' || entry.status === 'dropped' || entry.status === 'plan_to_watch') {
-    return entry.status
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function normalizeNames(value: unknown): string[] {
+  if (!value) return []
+
+  if (Array.isArray(value)) {
+    return [...new Set(value.flatMap((item) => {
+      if (typeof item === 'string') return [item.trim()]
+      if (item && typeof item === 'object' && 'name' in item) {
+        const name = (item as MalNamedResource).name
+        return name ? [name.trim()] : []
+      }
+      return []
+    }).filter(Boolean))]
   }
-  return statusByNumber[entry.watching_status ?? 6] ?? 'plan_to_watch'
+
+  if (typeof value === 'string') {
+    return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))]
+  }
+
+  return []
 }
 
-function names(resources?: JikanNamedResource[]): string[] {
-  return resources?.map((item) => item.name).filter((name): name is string => Boolean(name)) ?? []
+function parseTags(value: unknown): string[] {
+  if (typeof value !== 'string') return []
+  return value.split(',').map((tag) => tag.trim()).filter(Boolean)
 }
 
-function normalize(entry: JikanListEntry): AnimeItem {
-  const anime = entry.anime
-  const startDate = anime.aired?.from ?? null
-  const genres = [...new Set([
-    ...names(anime.genres),
-    ...names(anime.explicit_genres),
-    ...names(anime.demographics),
-  ])]
+function parseYear(entry: MalListEntry): number | null {
+  const seasonYear = Number(entry.anime_season?.year)
+  if (Number.isFinite(seasonYear) && seasonYear > 1900) return seasonYear
+
+  const date = entry.anime_start_date_string
+  if (!date) return null
+
+  const fullYear = date.match(/(?:19|20)\d{2}/)?.[0]
+  if (fullYear) return Number(fullYear)
+
+  const match = date.match(/(\d{2})$/)
+  if (!match) return null
+
+  const shortYear = Number(match[1])
+  return shortYear < 50 ? 2000 + shortYear : 1900 + shortYear
+}
+
+function normalize(entry: MalListEntry): AnimeItem | null {
+  if (!entry.anime_id || !entry.anime_title) return null
 
   return {
-    id: anime.mal_id,
-    title: anime.title,
-    image: anime.images?.webp?.large_image_url ?? anime.images?.jpg?.large_image_url ?? anime.images?.webp?.image_url ?? anime.images?.jpg?.image_url ?? '',
-    startDate,
-    year: anime.year ?? (startDate ? Number(startDate.slice(0, 4)) : null),
-    episodes: anime.episodes ?? null,
-    genres,
-    themes: names(anime.themes),
-    meanScore: anime.score ?? null,
+    id: entry.anime_id,
+    title: entry.anime_title,
+    image: entry.anime_image_path ?? '',
+    startDate: entry.anime_start_date_string ?? null,
+    year: parseYear(entry),
+    episodes: entry.anime_num_episodes || null,
+    genres: normalizeNames(entry.genres),
+    themes: parseTags(entry.tags),
+    meanScore: null,
     userScore: entry.score && entry.score > 0 ? entry.score : null,
-    status: normalizeStatus(entry),
-    watchedEpisodes: entry.episodes_watched ?? 0,
-    url: anime.url ?? `https://myanimelist.net/anime/${anime.mal_id}`,
+    status: statusByNumber[entry.status ?? 6] ?? 'plan_to_watch',
+    watchedEpisodes: entry.num_watched_episodes ?? 0,
+    url: entry.anime_url
+      ? (entry.anime_url.startsWith('http') ? entry.anime_url : `https://myanimelist.net${entry.anime_url}`)
+      : `https://myanimelist.net/anime/${entry.anime_id}`,
   }
+}
+
+async function fetchMalPage(targetUrl: string): Promise<MalListEntry[]> {
+  let lastStatus = 0
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(`${CORS_PROXY}${encodeURIComponent(targetUrl)}`)
+      lastStatus = response.status
+
+      if (response.ok) {
+        const data = await response.json()
+        if (!Array.isArray(data)) throw new Error('O MyAnimeList retornou uma resposta inesperada.')
+        return data as MalListEntry[]
+      }
+
+      const retryable = response.status === 408 || response.status === 429 || response.status >= 500
+      if (!retryable) break
+    } catch (error) {
+      if (attempt === 2) {
+        throw error instanceof Error ? error : new Error('Falha de rede ao consultar o MyAnimeList.')
+      }
+    }
+
+    await sleep(1000 * 2 ** attempt)
+  }
+
+  if (lastStatus === 404) throw new Error('Usuário não encontrado ou lista indisponível.')
+  if (lastStatus === 403) throw new Error('A lista não pôde ser acessada. Confirme se ela está pública.')
+  if (lastStatus === 429) throw new Error('Muitas consultas em sequência. Aguarde alguns segundos e tente novamente.')
+  throw new Error(`Não foi possível carregar a lista pública do MyAnimeList${lastStatus ? ` (erro ${lastStatus})` : ''}. Tente novamente em alguns segundos.`)
 }
 
 export function extractMalUsername(input: string): string {
@@ -104,28 +149,26 @@ export async function fetchUserAnimeList(input: string): Promise<{ username: str
   const username = extractMalUsername(input)
   if (!username) throw new Error('Informe o usuário ou cole o link da sua lista do MyAnimeList.')
 
-  const result: AnimeItem[] = []
-  let page = 1
+  const items: AnimeItem[] = []
+  let offset = 0
 
-  while (true) {
-    const url = `${API}/users/${encodeURIComponent(username)}/animelist?page=${page}`
-    const response = await fetch(url)
+  for (let page = 0; page < 20; page += 1) {
+    const target = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?offset=${offset}&status=7`
+    const data = await fetchMalPage(target)
 
-    if (!response.ok) {
-      if (response.status === 404) throw new Error('Usuário não encontrado ou a lista não está pública.')
-      if (response.status === 429) throw new Error('A Jikan atingiu o limite de requisições. Aguarde alguns segundos e tente novamente.')
-      throw new Error(`A Jikan respondeu com erro ${response.status}.`)
+    for (const entry of data) {
+      const normalized = normalize(entry)
+      if (normalized) items.push(normalized)
     }
 
-    const data = (await response.json()) as JikanResponse
-    result.push(...data.data.map(normalize))
-
-    if (!data.pagination?.has_next_page) break
-    page += 1
-
-    // Jikan allows 3 requests/second. Keep a small safety margin between pages.
-    await new Promise((resolve) => window.setTimeout(resolve, 400))
+    if (data.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+    await sleep(900)
   }
 
-  return { username, items: result }
+  if (items.length === 0) {
+    throw new Error('A lista está vazia, privada ou o usuário não foi encontrado.')
+  }
+
+  return { username, items }
 }
