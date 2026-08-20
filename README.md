@@ -4,10 +4,9 @@ MVP client-side para explorar uma lista pública do MyAnimeList como uma planilh
 
 ## Funcionalidades
 
-- Pesquisa por título, gênero e tema
+- Pesquisa por título, gênero e tag
 - Filtros por ano, gênero, status, número máximo de episódios e nota do usuário
-- Ordenação por ano, episódios, notas e progresso
-- Integração client-side com a Jikan API v4
+- Ordenação por ano, episódios, nota do usuário e progresso
 - Aceita username ou URL da lista do MyAnimeList
 - Sem login, Client ID ou Client Secret
 - Paginação automática para carregar a lista inteira
@@ -36,7 +35,7 @@ ou cole a URL completa da lista:
 https://myanimelist.net/animelist/StormYasta
 ```
 
-A aplicação extrai o username e consulta a lista pública usando a Jikan. Não há credenciais armazenadas no navegador nem no repositório.
+A aplicação extrai o username e consulta o endpoint público usado pelo próprio MyAnimeList para carregar listas. Como o GitHub Pages é executado no navegador e o MAL não é a mesma origem, a requisição passa por um proxy CORS público. Nenhuma credencial do usuário é armazenada.
 
 ## GitHub Pages
 
@@ -47,5 +46,6 @@ A URL esperada é `https://stormyasta.github.io/MALrepo/`.
 ## Limitações
 
 - A lista do usuário precisa estar pública.
-- A Jikan é somente leitura e possui limites de requisições.
-- Alguns metadados dependem do que estiver disponível no retorno da Jikan para a lista do usuário.
+- O endpoint de lista do MAL não é uma API oficial documentada, então pode mudar no futuro.
+- O projeto depende de um proxy CORS para consultar esse endpoint diretamente de uma página estática.
+- Metadados disponíveis dependem do retorno da lista pública do MyAnimeList.
