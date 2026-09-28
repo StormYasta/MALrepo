@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Ban, Brain, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Eye, Lightbulb, LoaderCircle, Plus, RefreshCw, Sparkles, Trophy, XCircle } from 'lucide-react'
 import { buildTasteProfile, fetchDiscoveryAnime, type DiscoveryAnime, type TasteProfile } from '../anilistApi'
+import { animeTitleAliases, normalizeSearchText } from '../search'
 import { getBlacklist, getDiscoveryQueue, loadGuessStats, saveGuessStats, toggleBlacklist, toggleDiscoveryQueue, type GuessStats } from '../storage'
 import type { AnimeItem } from '../types'
 
@@ -32,12 +33,7 @@ type GuessTarget = {
 }
 
 function normalizeGuess(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
+  return normalizeSearchText(value)
 }
 
 function randomOne<T extends { key: string }>(items: T[], except?: string): T | null {
@@ -101,7 +97,7 @@ function animeToGuess(item: AnimeItem, source: GuessMode): GuessTarget {
   return {
     key: `mal-${item.id}`,
     title: item.title,
-    aliases: [item.title],
+    aliases: animeTitleAliases(item),
     image: item.image,
     year: item.year,
     episodes: item.episodes,
@@ -337,7 +333,7 @@ export function DiscoveryLab({ anime, username }: Props) {
     </section>
 
     <div className="section-heading guess-heading">
-      <div><span className="eyebrow">ANIGUESSR</span><h2>Adivinhe usando sua própria lista</h2><p className="section-copy">Temporadas e partes explícitas são agrupadas como uma única série. As sugestões respeitam o modo atual, e cada erro ou pista reduz a pontuação.</p></div>
+      <div><span className="eyebrow">ANIGUESSR</span><h2>Adivinhe usando sua própria lista</h2><p className="section-copy">Temporadas e partes explícitas são agrupadas como uma única série. Você pode responder pelo título em inglês, romaji ou japonês; cada erro ou pista reduz a pontuação.</p></div>
       <div className="guess-stats"><span>Streak <b>{streak}</b></span><span>Sessão <b>{sessionScore.toLocaleString('pt-BR')}</b></span><span>Recorde <b>{stats.bestStreak}</b></span></div>
     </div>
 
@@ -367,7 +363,7 @@ export function DiscoveryLab({ anime, username }: Props) {
           <>
             <label className="guess-input-label">Qual é o anime?</label>
             <div className="guess-input-wrap">
-              <div className="guess-input-row"><input value={guess} onChange={(e) => setGuess(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitGuess()} placeholder="Comece a digitar o título..." autoComplete="off"/><button className="primary compact" onClick={submitGuess}>Responder</button></div>
+              <div className="guess-input-row"><input value={guess} onChange={(e) => setGuess(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitGuess()} placeholder="Título em inglês, romaji ou japonês..." autoComplete="off"/><button className="primary compact" onClick={submitGuess}>Responder</button></div>
               {suggestions.length > 0 && <div className="guess-suggestions">{suggestions.map(({item,alias}) => <button key={item.key} onMouseDown={(e) => e.preventDefault()} onClick={() => setGuess(item.title)}><img src={item.image} alt=""/><div><b>{item.title}</b>{alias !== item.title && <small>{alias}</small>}</div></button>)}</div>}
             </div>
             <AttemptHistory attempts={attempts}/>
