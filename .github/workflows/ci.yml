@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feat/explorer-diversao
+      - 'feat/**'
   pull_request:
     branches:
       - main
