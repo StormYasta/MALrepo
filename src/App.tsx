@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Compass, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
+import { Check, Compass, Download, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
 import { Explorer } from './components/Explorer'
 import { FunZone } from './components/FunZone'
 import { readCachedMeanScore } from './jikanScores'
@@ -20,6 +20,11 @@ function getHashTab(): AppTab {
   return window.location.hash === '#diversao' ? 'fun' : 'explorer'
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 function App() {
   const initialUser = getUrlUser() || getLastUser()
   const [anime, setAnime] = useState<AnimeItem[]>(() => hydrateCachedScores(mockAnime))
@@ -30,6 +35,8 @@ function App() {
   const [source, setSource] = useState<'demo' | 'mal'>('demo')
   const [tab, setTab] = useState<AppTab>(getHashTab)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installed, setInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
   const initialLoadStarted = useRef(false)
 
   const loadedLabel = useMemo(() => source === 'demo' ? 'Demonstração' : loadedUsername, [source, loadedUsername])
@@ -51,6 +58,24 @@ function App() {
     const syncHash = () => setTab(getHashTab())
     window.addEventListener('hashchange', syncHash)
     return () => window.removeEventListener('hashchange', syncHash)
+  }, [])
+
+  useEffect(() => {
+    const onInstallPrompt = (event: Event) => {
+      event.preventDefault()
+      setInstallPrompt(event as BeforeInstallPromptEvent)
+    }
+    const onInstalled = () => {
+      setInstalled(true)
+      setInstallPrompt(null)
+    }
+
+    window.addEventListener('beforeinstallprompt', onInstallPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onInstallPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
   }, [])
 
   function canonicalUrl(username: string, nextTab = tab) {
@@ -92,6 +117,16 @@ function App() {
     }
   }
 
+  async function installApp() {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    const choice = await installPrompt.userChoice
+    if (choice.outcome === 'accepted') {
+      setInstalled(true)
+      setInstallPrompt(null)
+    }
+  }
+
   async function copyProfileUrl() {
     if (!loadedUsername) return
     const url = canonicalUrl(loadedUsername)
@@ -111,7 +146,11 @@ function App() {
         <button className={tab === 'explorer' ? 'active' : ''} onClick={() => changeTab('explorer')}><Compass size={16}/> Explorer</button>
         <button className={tab === 'fun' ? 'active' : ''} onClick={() => changeTab('fun')}><Gamepad2 size={16}/> Diversão</button>
       </nav>
-      <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer">GitHub</a>
+      <div className="header-actions">
+        {!installed && installPrompt && <button className="install-app" onClick={installApp}><Download size={15}/> Instalar app</button>}
+        {installed && <span className="installed-badge"><Check size={13}/> Instalado</span>}
+        <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
     </header>
 
     <main>
