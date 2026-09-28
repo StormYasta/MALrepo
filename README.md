@@ -17,25 +17,26 @@ MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos
 - Perfil embutido na URL: `?user=animefan` carrega a lista automaticamente
 - O último usuário também pode ser lembrado localmente no navegador
 
-### Diversão
+### Estatísticas
 
-- Roleta do próximo anime com filtros
-- Recomendação baseada nos gêneros que você costuma avaliar melhor
-- **Descoberta personalizada fora da sua lista**, usando AniList e excluindo os MAL IDs já existentes
-- Ranking local de compatibilidade com explicações do porquê cada anime apareceu
-- Fila local para descobertas e opção de ocultar recomendações
-- **AniGuessr** com três modos: Já assisti, Minha fila e Descoberta
-- Sistema de pistas, pontos, streak e recordes persistidos no navegador
-- Modo surpresa com capa borrada
 - Anime DNA com radar de gêneros, assinatura do gosto e Mainstream Meter
 - Hot Takes, Hidden Gems, Hall da Fama e Hall da Vergonha
 - Tempo estimado assistido, estatísticas curiosas e mapa por décadas
-- Batalha de animes estilo torneio
-- Taste Twins para comparar duas listas públicas
-- Anime Bingo e desafio 3×3 salvo no navegador
+- Taste Twins para comparar dois históricos
 - Conquistas locais
 - Card PNG do Anime DNA gerado inteiramente no navegador
-- Tema visual dinâmico usando a capa do anime em destaque
+- Títulos em Plan to Watch são excluídos das métricas para não distorcer o histórico
+
+### Jogos
+
+- **AniGuessr** com histórico de tentativas, autocomplete, pistas, pontos e streak
+- Modos Meu histórico, Minha fila e Descoberta
+- Blur progressivo mais leve na capa
+- **Descoberta personalizada** recolhível, usando AniList e excluindo os MAL IDs já existentes
+- Ranking local de compatibilidade com explicações
+- Roleta, recomendação da fila e modo surpresa
+- Batalha de animes estilo torneio
+- Anime Bingo e desafio 3×3 salvo no navegador
 
 ## Perfil pela URL
 
@@ -45,10 +46,11 @@ Depois que uma lista é carregada, o username fica na própria URL:
 https://seu-usuario.github.io/MALrepo/?user=animefan#explorer
 ```
 
-ou diretamente na aba Diversão:
+ou diretamente nas novas áreas:
 
 ```text
-https://seu-usuario.github.io/MALrepo/?user=animefan#diversao
+https://seu-usuario.github.io/MALrepo/?user=animefan#estatisticas
+https://seu-usuario.github.io/MALrepo/?user=animefan#jogos
 ```
 
 Ao abrir esse endereço, o MAL Sheet carrega a lista automaticamente. Não existe login ou sessão no servidor: o username é apenas uma referência pública na URL.
