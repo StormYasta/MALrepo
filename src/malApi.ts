@@ -82,6 +82,7 @@ function normalize(entry: MalListEntry): AnimeItem | null {
   return {
     id: entry.anime_id,
     title: entry.anime_title,
+    aliases: [entry.anime_title],
     image: entry.anime_image_path ?? '',
     startDate: entry.anime_start_date_string ?? null,
     year: parseYear(entry),
