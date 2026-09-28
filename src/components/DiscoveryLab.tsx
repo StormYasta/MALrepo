@@ -311,14 +311,14 @@ export function DiscoveryLab({ anime, username }: Props) {
             <Clue unlocked={clueLevel >= 5 || Boolean(result)} label={target.source === 'discovery' ? 'Última pista' : 'Origem'} value={target.source === 'discovery' ? target.description.slice(0,180) || `${target.match ?? '—'}% de compatibilidade` : target.source === 'queue' ? 'Está no seu Plan to Watch' : 'Faz parte do seu histórico'}/>
           </div>
 
-          {result ? <div className={`guess-result ${result}`}><span>{result === 'correct' ? '🎯 ACERTOU' : '👀 REVELADO'}</span><h3>{target.title}</h3>{target.match !== null && <p>{target.match}% de compatibilidade com seu histórico.</p>}<div><a href={target.url} target="_blank" rel="noreferrer">Abrir no MAL <ExternalLink size={13}/></a><button className="primary compact" onClick={() => startRound()}>Próxima rodada</button></div>{roundPoints > 0 && <strong>+${roundPoints} pontos</strong>}</div> :
+          {result ? <><div className={`guess-result ${result}`}><span>{result === 'correct' ? '🎯 ACERTOU' : '👀 REVELADO'}</span><h3>{target.title}</h3>{target.match !== null && <p>{target.match}% de compatibilidade com seu histórico.</p>}<div><a href={target.url} target="_blank" rel="noreferrer">Abrir no MAL <ExternalLink size={13}/></a><button className="primary compact" onClick={() => startRound()}>Próxima rodada</button></div>{roundPoints > 0 && <strong>+${roundPoints} pontos</strong>}</div><AttemptHistory attempts={attempts}/></> :
           <>
             <label className="guess-input-label">Qual é o anime?</label>
             <div className="guess-input-wrap">
               <div className="guess-input-row"><input value={guess} onChange={(e) => setGuess(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitGuess()} placeholder="Comece a digitar o título..." autoComplete="off"/><button className="primary compact" onClick={submitGuess}>Responder</button></div>
               {suggestions.length > 0 && <div className="guess-suggestions">{suggestions.map(({item,alias}) => <button key={item.key} onMouseDown={(e) => e.preventDefault()} onClick={() => setGuess(item.title)}><img src={item.image} alt=""/><div><b>{item.title}</b>{alias !== item.title && <small>{alias}</small>}</div></button>)}</div>}
             </div>
-            {attempts.length > 0 && <div className="guess-attempts"><span>Tentativas</span><div>{attempts.map((attempt,index) => <span key={`${attempt.text}-${index}`} className={attempt.correct ? 'attempt-correct' : 'attempt-wrong'}>{attempt.correct ? <CheckCircle2 size={13}/> : <XCircle size={13}/>} {attempt.text}</span>)}</div></div>}
+            <AttemptHistory attempts={attempts}/>
             {message && <div className="guess-message">{message}</div>}
             <div className="guess-tools"><button className="secondary" onClick={revealClue} disabled={clueLevel >= 5}><Lightbulb size={14}/> Liberar pista ({clueLevel}/5)</button><button className="secondary" onClick={giveUp}><Eye size={14}/> Revelar resposta</button><button className="secondary" onClick={() => startRound()}><RefreshCw size={14}/> Pular</button></div>
           </>}
@@ -326,6 +326,11 @@ export function DiscoveryLab({ anime, username }: Props) {
       </> : <div className="guess-empty"><Sparkles size={24}/><h3>Sem títulos neste modo</h3><p>{mode === 'discovery' ? 'Aguarde as recomendações ou atualize a descoberta personalizada.' : mode === 'queue' ? 'Sua lista não possui títulos no Plan to Watch.' : 'Seu histórico ainda não possui títulos suficientes.'}</p>{mode === 'discovery' && <button className="primary compact" onClick={() => { setDiscoveryOpen(true); void loadDiscovery(true) }} disabled={loading}>Buscar descobertas</button>}<small>{activePool.length} candidatos disponíveis</small></div>}
     </article>
   </section>
+}
+
+function AttemptHistory({ attempts }: { attempts: Attempt[] }) {
+  if (!attempts.length) return null
+  return <div className="guess-attempts"><span>Tentativas desta rodada</span><div>{attempts.map((attempt,index) => <span key={`${attempt.text}-${index}`} className={attempt.correct ? 'attempt-correct' : 'attempt-wrong'}>{attempt.correct ? <CheckCircle2 size={13}/> : <XCircle size={13}/>} {attempt.text}</span>)}</div></div>
 }
 
 function Clue({ unlocked, label, value }: { unlocked: boolean; label: string; value: string }) {
