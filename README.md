@@ -4,15 +4,29 @@ MVP client-side para explorar uma lista pública do MyAnimeList como uma planilh
 
 ## Funcionalidades
 
-- Pesquisa por título, gênero e tag
-- Filtros por ano, gênero, status, número máximo de episódios e nota do usuário
-- Ordenação por ano, episódios, nota do usuário e progresso
-- Aceita username ou URL da lista do MyAnimeList
-- Sem login, Client ID ou Client Secret
-- Paginação automática para carregar a lista inteira
-- Modo demonstração sem configuração
-- Layout responsivo
-- Deploy automático no GitHub Pages
+### Explorer
+
+- Tabela pesquisável e filtrável por título, gênero, status, ano, episódios e nota pessoal
+- Nota MAL enriquecida pela Jikan, com cache local
+- Coluna Δ para comparar sua nota com a média MAL
+- Presets rápidos: curto pra hoje, só pedrada, clássicos e fila
+- Favoritos e blacklist locais
+- Compartilhamento da visão por URL, incluindo usuário e filtros
+
+### Diversão
+
+- Roleta do próximo anime com filtros
+- Recomendação baseada nos gêneros que você costuma avaliar melhor
+- Modo surpresa com capa borrada
+- Anime DNA com radar de gêneros, assinatura do gosto e Mainstream Meter
+- Hot Takes, Hidden Gems, Hall da Fama e Hall da Vergonha
+- Tempo estimado assistido, estatísticas curiosas e mapa por décadas
+- Batalha de animes estilo torneio
+- Taste Twins para comparar duas listas públicas
+- Anime Bingo e desafio 3×3 salvo no navegador
+- Conquistas locais
+- Card PNG do Anime DNA gerado inteiramente no navegador
+- Tema visual dinâmico usando a capa do anime em destaque
 
 ## Rodar localmente
 
@@ -35,7 +49,7 @@ ou cole a URL completa da lista:
 https://myanimelist.net/animelist/StormYasta
 ```
 
-A aplicação extrai o username e consulta o endpoint público usado pelo próprio MyAnimeList para carregar listas. Como o GitHub Pages é executado no navegador e o MAL não é a mesma origem, a requisição passa por um proxy CORS público. Nenhuma credencial do usuário é armazenada.
+A aplicação extrai o username e consulta o endpoint público usado pelo próprio MyAnimeList através do Cloudflare Worker restrito do projeto. Nenhuma credencial do usuário é armazenada.
 
 ## GitHub Pages
 
