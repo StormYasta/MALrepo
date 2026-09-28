@@ -1,5 +1,7 @@
 # MAL Sheet
 
+Todos os usernames usados na documentação são exemplos fictícios.
+
 MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos animes e brincar com o próprio histórico sem criar uma conta adicional.
 
 ## Funcionalidades
