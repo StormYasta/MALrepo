@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Check, Compass, Download, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
+import { fetchAnimeTitleAliases } from './anilistApi'
 import { Explorer } from './components/Explorer'
 import { GamesZone } from './components/GamesZone'
 import { StatsZone } from './components/StatsZone'
@@ -47,6 +48,22 @@ function App() {
   const updateMeanScore = useCallback((id: number, meanScore: number) => {
     setAnime((current) => current.map((item) => item.id === id ? { ...item, meanScore } : item))
   }, [])
+
+  const enrichTitles = useCallback(async (items: AnimeItem[]) => {
+    try {
+      const aliases = await fetchAnimeTitleAliases(items)
+      setAnime((current) => current.map((item) => {
+        const itemAliases = aliases.get(item.id)
+        return itemAliases ? { ...item, aliases: itemAliases } : item
+      }))
+    } catch {
+      // Alternative titles are an enhancement; the MAL list remains usable without them.
+    }
+  }, [])
+
+  useEffect(() => {
+    void enrichTitles(mockAnime)
+  }, [enrichTitles])
 
   useEffect(() => {
     if (initialLoadStarted.current) return
@@ -104,6 +121,7 @@ function App() {
     try {
       const { username, items } = await fetchUserAnimeList(target)
       setAnime(hydrateCachedScores(items))
+      void enrichTitles(items)
       setLoadedUsername(username)
       setSource('mal')
       setListInput(username)
