@@ -52,7 +52,7 @@ export default {
       upstream = await fetch(target, {
         headers: {
           'Accept': 'application/json,text/plain,*/*',
-          'User-Agent': 'MAL-Sheet/1.0 (+https://stormyasta.github.io/MALrepo/)',
+          'User-Agent': 'MAL-Sheet/1.0',
           'Referer': `${MAL_ORIGIN}/animelist/${encodeURIComponent(user)}`,
         },
         cf: {
