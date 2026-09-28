@@ -1,6 +1,6 @@
 # MAL Sheet
 
-MVP client-side para explorar uma lista pública do MyAnimeList como uma planilha pesquisável e filtrável.
+MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos animes e brincar com o próprio histórico sem criar uma conta adicional.
 
 ## Funcionalidades
 
@@ -12,11 +12,18 @@ MVP client-side para explorar uma lista pública do MyAnimeList como uma planilh
 - Presets rápidos: curto pra hoje, só pedrada, clássicos e fila
 - Favoritos e blacklist locais
 - Compartilhamento da visão por URL, incluindo usuário e filtros
+- Perfil embutido na URL: `?user=Kerbus` carrega a lista automaticamente
+- O último usuário também pode ser lembrado localmente no navegador
 
 ### Diversão
 
 - Roleta do próximo anime com filtros
 - Recomendação baseada nos gêneros que você costuma avaliar melhor
+- **Descoberta personalizada fora da sua lista**, usando AniList e excluindo os MAL IDs já existentes
+- Ranking local de compatibilidade com explicações do porquê cada anime apareceu
+- Fila local para descobertas e opção de ocultar recomendações
+- **AniGuessr** com três modos: Já assisti, Minha fila e Descoberta
+- Sistema de pistas, pontos, streak e recordes persistidos no navegador
 - Modo surpresa com capa borrada
 - Anime DNA com radar de gêneros, assinatura do gosto e Mainstream Meter
 - Hot Takes, Hidden Gems, Hall da Fama e Hall da Vergonha
@@ -27,6 +34,38 @@ MVP client-side para explorar uma lista pública do MyAnimeList como uma planilh
 - Conquistas locais
 - Card PNG do Anime DNA gerado inteiramente no navegador
 - Tema visual dinâmico usando a capa do anime em destaque
+
+## Perfil pela URL
+
+Depois que uma lista é carregada, o username fica na própria URL:
+
+```text
+https://stormyasta.github.io/MALrepo/?user=Kerbus#explorer
+```
+
+ou diretamente na aba Diversão:
+
+```text
+https://stormyasta.github.io/MALrepo/?user=Kerbus#diversao
+```
+
+Ao abrir esse endereço, o MAL Sheet carrega a lista automaticamente. Não existe login ou sessão no servidor: o username é apenas uma referência pública na URL.
+
+Se a URL não tiver `user`, o navegador pode reutilizar o último username salvo em `localStorage`.
+
+## Descoberta e AniGuessr
+
+A lista do MAL é usada para montar um perfil de gosto local. Notas altas dão peso positivo aos gêneros; notas baixas e títulos abandonados reduzem esse peso. A AniList é consultada apenas para buscar candidatos que não estejam na lista do usuário.
+
+O ranking considera:
+
+- afinidade de gêneros
+- nota média do título
+- proximidade com a época em que o usuário costuma assistir
+- quantidade de episódios em relação ao histórico
+- popularidade como critério secundário
+
+Os resultados da AniList ficam em cache no navegador por algumas horas para reduzir chamadas externas.
 
 ## Rodar localmente
 
@@ -72,19 +111,16 @@ Para testar o Worker antes do Pages, abra `SUA_URL_DO_WORKER/health`. O retorno 
 
 ## Arquitetura
 
-- GitHub Pages: interface React/Vite.
-- Cloudflare Worker: somente leitura da lista pública do MyAnimeList e CORS.
-- Jikan: enriquecimento da Nota MAL por anime, com cache local.
-- Nenhum login, Client Secret ou token do usuário é necessário.
+- **GitHub Pages**: interface React/Vite, filtros, jogos, estatísticas e ranking de recomendações.
+- **Cloudflare Worker**: somente leitura da lista pública do MyAnimeList e CORS.
+- **AniList GraphQL**: candidatos de descoberta, metadados e dados usados no AniGuessr Descoberta.
+- **Jikan**: enriquecimento da Nota MAL por anime, com cache local.
+- **localStorage**: usuário lembrado, fila local, favoritos, blacklist, desafios e recordes.
+- Nenhum banco de dados, login próprio, Client Secret ou token do usuário é necessário.
 
 ## Limitações
 
 - A lista do usuário precisa estar pública.
-- O endpoint `load.json` do MAL é não documentado e pode mudar no futuro.
+- O endpoint `load.json` do MAL não é uma API oficial documentada e pode mudar no futuro.
 - A Nota MAL é enriquecida separadamente pela Jikan e pode aparecer alguns instantes depois da tabela.
-
-
-- A lista do usuário precisa estar pública.
-- O endpoint de lista do MAL não é uma API oficial documentada, então pode mudar no futuro.
-- O projeto depende de um proxy CORS para consultar esse endpoint diretamente de uma página estática.
-- Metadados disponíveis dependem do retorno da lista pública do MyAnimeList.
+- A AniList possui rate limit; o MAL Sheet reduz chamadas usando consultas em lote e cache local.
