@@ -1,6 +1,7 @@
 import type { AnimeItem, WatchStatus } from './types'
 
 const PAGE_SIZE = 300
+const PROXY_URL = (import.meta.env.VITE_MAL_PROXY_URL ?? '').replace(/\/$/, '')
 
 type MalNamedResource = { name?: string }
 type MalSeason = { year?: number | string }
@@ -97,54 +98,46 @@ function normalize(entry: MalListEntry): AnimeItem | null {
   }
 }
 
-function proxyUrls(targetUrl: string): string[] {
-  return [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    `https://proxy.cors.sh/${targetUrl}`,
-  ]
-}
-
-async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
-
-  try {
-    return await fetch(url, { signal: controller.signal })
-  } finally {
-    window.clearTimeout(timeout)
+async function fetchMalPage(username: string, offset: number): Promise<MalListEntry[]> {
+  if (!PROXY_URL) {
+    throw new Error('O proxy do MAL ainda não foi configurado no deploy. Defina a variável MAL_PROXY_URL no GitHub Actions.')
   }
-}
 
-async function fetchMalPage(targetUrl: string): Promise<MalListEntry[]> {
   let lastStatus = 0
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    for (const proxyUrl of proxyUrls(targetUrl)) {
-      try {
-        const response = await fetchWithTimeout(proxyUrl)
-        lastStatus = response.status
+    try {
+      const url = `${PROXY_URL}/list?user=${encodeURIComponent(username)}&offset=${offset}`
+      const response = await fetch(url)
+      lastStatus = response.status
 
-        if (response.ok) {
-          const data = await response.json()
-          if (!Array.isArray(data)) continue
-          return data as MalListEntry[]
-        }
+      if (response.ok) {
+        const data = await response.json()
+        if (!Array.isArray(data)) throw new Error('O proxy retornou uma resposta inesperada.')
+        return data as MalListEntry[]
+      }
 
-        // A proxy can reject a target that another proxy accepts, so try the next provider.
-        if (response.status === 403 || response.status === 429 || response.status >= 500) continue
-      } catch {
-        // Certificate, DNS, timeout and CORS failures are provider-specific. Try the fallback.
+      if (response.status === 404) throw new Error('Usuário não encontrado ou lista indisponível.')
+      if (response.status === 403) throw new Error('A lista não pôde ser acessada. Confirme se ela está pública.')
+      if (response.status === 429) {
+        await sleep(1500 * (attempt + 1))
         continue
+      }
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes('Usuário não encontrado') ||
+        error.message.includes('lista não pôde')
+      )) throw error
+
+      if (attempt === 2) {
+        throw new Error('Não foi possível alcançar o proxy do MAL. Verifique a URL do Worker ou tente novamente.')
       }
     }
 
     await sleep(1000 * 2 ** attempt)
   }
 
-  if (lastStatus === 404) throw new Error('Usuário não encontrado ou lista indisponível.')
-  if (lastStatus === 403) throw new Error('A lista não pôde ser acessada. Confirme se ela está pública.')
-  if (lastStatus === 429) throw new Error('Muitas consultas em sequência. Aguarde alguns segundos e tente novamente.')
-  throw new Error('Não foi possível acessar a lista pública do MyAnimeList pelos proxies disponíveis. Tente novamente em alguns segundos.')
+  throw new Error(`O proxy do MAL respondeu com erro ${lastStatus || 'de rede'}.`)
 }
 
 export function extractMalUsername(input: string): string {
@@ -171,8 +164,7 @@ export async function fetchUserAnimeList(input: string): Promise<{ username: str
   let offset = 0
 
   for (let page = 0; page < 20; page += 1) {
-    const target = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?offset=${offset}&status=7`
-    const data = await fetchMalPage(target)
+    const data = await fetchMalPage(username, offset)
 
     for (const entry of data) {
       const normalized = normalize(entry)
@@ -181,7 +173,7 @@ export async function fetchUserAnimeList(input: string): Promise<{ username: str
 
     if (data.length < PAGE_SIZE) break
     offset += PAGE_SIZE
-    await sleep(900)
+    await sleep(350)
   }
 
   if (items.length === 0) {
