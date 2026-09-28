@@ -67,6 +67,21 @@ O ranking considera:
 
 Os resultados da AniList ficam em cache no navegador por algumas horas para reduzir chamadas externas.
 
+## Instalação como aplicativo (PWA)
+
+O MAL Sheet pode ser instalado pelo Chrome/Android como um aplicativo, não apenas como atalho. O build gera automaticamente:
+
+- Web App Manifest
+- Service Worker
+- cache do shell da aplicação
+- ícones 192×192, 512×512 e maskable
+- modo `standalone`, sem a barra do navegador
+- atualização automática do service worker
+
+No Android, depois do deploy, abra o MAL Sheet no Chrome e use **Instalar app** no menu do navegador ou o botão **Instalar app** exibido pela própria interface quando o Chrome disponibilizar o prompt.
+
+O app instalado abre em `/MALrepo/` e reutiliza o último usuário salvo no navegador, então o perfil continua sendo carregado automaticamente.
+
 ## Rodar localmente
 
 ```bash
