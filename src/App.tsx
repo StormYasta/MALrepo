@@ -1,69 +1,57 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownUp, ExternalLink, Filter, LoaderCircle, Search, SlidersHorizontal, Star, X } from 'lucide-react'
-import { fetchAnimeMeanScore } from './jikanScores'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Compass, Gamepad2, LoaderCircle } from 'lucide-react'
+import { Explorer } from './components/Explorer'
+import { FunZone } from './components/FunZone'
+import { readCachedMeanScore } from './jikanScores'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
-import type { AnimeItem, SortDirection, SortKey, WatchStatus } from './types'
+import type { AnimeItem, AppTab } from './types'
 
-const statusLabels: Record<WatchStatus, string> = {
-  watching: 'Assistindo', completed: 'Completo', on_hold: 'Em espera', dropped: 'Abandonado', plan_to_watch: 'Planejo assistir',
+function hydrateCachedScores(items: AnimeItem[]) {
+  return items.map((item) => ({ ...item, meanScore: item.meanScore ?? readCachedMeanScore(item.id) }))
 }
 
 function App() {
-  const [anime, setAnime] = useState<AnimeItem[]>(mockAnime)
-  const [listInput, setListInput] = useState('')
+  const [anime, setAnime] = useState<AnimeItem[]>(() => hydrateCachedScores(mockAnime))
+  const [listInput, setListInput] = useState(() => new URLSearchParams(window.location.search).get('user') ?? '')
   const [loadedUsername, setLoadedUsername] = useState('')
-  const [search, setSearch] = useState('')
-  const [genre, setGenre] = useState('all')
-  const [status, setStatus] = useState<'all' | WatchStatus>('all')
-  const [yearFrom, setYearFrom] = useState('')
-  const [yearTo, setYearTo] = useState('')
-  const [episodesMax, setEpisodesMax] = useState('')
-  const [scoreMin, setScoreMin] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('userScore')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [source, setSource] = useState<'demo' | 'mal'>('demo')
+  const [tab, setTab] = useState<AppTab>(() => window.location.hash === '#diversao' ? 'fun' : 'explorer')
 
-  const genres = useMemo(() => [...new Set(anime.flatMap((item) => item.genres))].sort(), [anime])
+  const loadedLabel = useMemo(() => source === 'demo' ? 'Demonstração' : loadedUsername, [source, loadedUsername])
 
   const updateMeanScore = useCallback((id: number, meanScore: number) => {
     setAnime((current) => current.map((item) => item.id === id ? { ...item, meanScore } : item))
   }, [])
 
-  const filtered = useMemo(() => {
-    const result = anime.filter((item) => {
-      const text = `${item.title} ${item.genres.join(' ')} ${item.themes.join(' ')}`.toLowerCase()
-      if (search && !text.includes(search.toLowerCase())) return false
-      if (genre !== 'all' && !item.genres.includes(genre)) return false
-      if (status !== 'all' && item.status !== status) return false
-      if (yearFrom && (item.year ?? 0) < Number(yearFrom)) return false
-      if (yearTo && (item.year ?? 9999) > Number(yearTo)) return false
-      if (episodesMax && item.episodes !== null && item.episodes > Number(episodesMax)) return false
-      if (scoreMin && (item.userScore ?? 0) < Number(scoreMin)) return false
-      return true
-    })
+  useEffect(() => {
+    const initialUser = new URLSearchParams(window.location.search).get('user')
+    if (initialUser) void loadList(initialUser)
+    // Only auto-load the shared user once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    return result.sort((a, b) => {
-      const getValue = (item: AnimeItem): string | number => {
-        if (sortKey === 'progress') return item.episodes ? item.watchedEpisodes / item.episodes : item.watchedEpisodes
-        return item[sortKey] ?? (sortDirection === 'asc' ? Number.MAX_SAFE_INTEGER : -1)
-      }
-      const av = getValue(a), bv = getValue(b)
-      const comparison = typeof av === 'string' ? av.localeCompare(String(bv)) : Number(av) - Number(bv)
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-  }, [anime, search, genre, status, yearFrom, yearTo, episodesMax, scoreMin, sortKey, sortDirection])
+  function changeTab(next: AppTab) {
+    setTab(next)
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}${next === 'fun' ? '#diversao' : '#explorer'}`)
+  }
 
-  async function loadList() {
+  async function loadList(inputOverride?: string) {
+    const target = inputOverride ?? listInput
+    if (!target.trim()) return
     setLoading(true)
     setError('')
     try {
-      const { username, items } = await fetchUserAnimeList(listInput)
-      setAnime(items)
+      const { username, items } = await fetchUserAnimeList(target)
+      setAnime(hydrateCachedScores(items))
       setLoadedUsername(username)
       setSource('mal')
+      setListInput(username)
+      const params = new URLSearchParams(window.location.search)
+      params.set('user', username)
+      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}${window.location.hash || '#explorer'}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar a lista.')
     } finally {
@@ -71,88 +59,31 @@ function App() {
     }
   }
 
-  function clearFilters() {
-    setSearch(''); setGenre('all'); setStatus('all'); setYearFrom(''); setYearTo(''); setEpisodesMax(''); setScoreMin('')
-  }
-
-  function changeSort(key: SortKey) {
-    if (sortKey === key) setSortDirection((value) => value === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDirection(key === 'title' ? 'asc' : 'desc') }
-  }
-
   return <div className="app">
-    <header>
+    <header className="app-header">
       <div className="brand"><div className="logo">M</div><div><strong>MAL Sheet</strong><span>Sua lista, do seu jeito.</span></div></div>
+      <nav className="main-tabs" aria-label="Áreas do MAL Sheet">
+        <button className={tab === 'explorer' ? 'active' : ''} onClick={() => changeTab('explorer')}><Compass size={16}/> Explorer</button>
+        <button className={tab === 'fun' ? 'active' : ''} onClick={() => changeTab('fun')}><Gamepad2 size={16}/> Diversão</button>
+      </nav>
       <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer">GitHub</a>
     </header>
 
     <main>
-      <section className="hero">
-        <div><span className="eyebrow">MYANIMELIST EXPLORER</span><h1>Encontre o próximo anime<br/><em>sem perder tempo.</em></h1><p>Transforme sua lista pública do MyAnimeList em uma tabela poderosa, pesquisável e filtrável.</p></div>
-        <div className="connect-card">
-          <label>Usuário ou link da lista do MyAnimeList</label>
-          <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="StormYasta ou https://myanimelist.net/animelist/StormYasta" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
-          <button className="primary" onClick={loadList} disabled={loading}>{loading ? <LoaderCircle className="spin" size={18}/> : null}{loading ? 'Carregando lista...' : 'Carregar lista'}</button>
-          {error && <div className="error">{error}</div>}
-          <p className="hint">Sem login e sem Client ID. A lista usa os dados públicos do MAL; a Nota MAL é enriquecida pela Jikan conforme os itens aparecem na tela.</p>
-        </div>
+      <section className="load-strip">
+        <div><span className="eyebrow">LISTA ATIVA</span><strong>{loadedLabel}</strong><small>{anime.length} títulos carregados</small></div>
+        <div className="load-form"><input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="Kerbus ou link da lista do MyAnimeList" onKeyDown={(e) => e.key === 'Enter' && loadList()}/><button className="primary compact" onClick={() => loadList()} disabled={loading}>{loading ? <LoaderCircle className="spin" size={17}/> : null}{loading ? 'Carregando...' : 'Carregar lista'}</button></div>
+        {error && <div className="error load-error">{error}</div>}
       </section>
 
-      <section className="workspace">
-        <div className="workspace-title"><div><h2>Minha lista</h2><span><b>{filtered.length}</b> de {anime.length} títulos · {source === 'demo' ? 'Modo demonstração' : `Lista de ${loadedUsername}`}</span></div><button className="clear" onClick={clearFilters}><X size={15}/> Limpar filtros</button></div>
-        <div className="toolbar">
-          <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar título, gênero ou tag..."/></div>
-          <div className="filter-label"><SlidersHorizontal size={17}/> Filtros</div>
-          <select value={genre} onChange={(e) => setGenre(e.target.value)}><option value="all">Todos os gêneros</option>{genres.map((g) => <option key={g}>{g}</option>)}</select>
-          <select value={status} onChange={(e) => setStatus(e.target.value as 'all' | WatchStatus)}><option value="all">Todos os status</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-        </div>
-        <div className="advanced">
-          <Filter size={15}/><span>Ano</span><input inputMode="numeric" value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} placeholder="De"/><span>—</span><input inputMode="numeric" value={yearTo} onChange={(e) => setYearTo(e.target.value)} placeholder="Até"/>
-          <span>Máx. episódios</span><input inputMode="numeric" value={episodesMax} onChange={(e) => setEpisodesMax(e.target.value)} placeholder="Ex: 24"/>
-          <span>Minha nota mínima</span><select value={scoreMin} onChange={(e) => setScoreMin(e.target.value)}><option value="">Qualquer</option>{[10,9,8,7,6,5,4,3,2,1].map((n) => <option key={n} value={n}>{n}+</option>)}</select>
-        </div>
-
-        <div className="table-wrap"><table><thead><tr>
-          <th>Anime</th><SortHead label="Ano" value="year" current={sortKey} onClick={changeSort}/><SortHead label="Episódios" value="episodes" current={sortKey} onClick={changeSort}/><th>Gêneros / tags</th><SortHead label="Nota MAL" value="meanScore" current={sortKey} onClick={changeSort}/><SortHead label="Minha nota" value="userScore" current={sortKey} onClick={changeSort}/><SortHead label="Progresso" value="progress" current={sortKey} onClick={changeSort}/><th>Status</th><th></th>
-        </tr></thead><tbody>{filtered.map((item) => <tr key={item.id}>
-          <td><div className="anime-cell">{item.image ? <img src={item.image} alt=""/> : <div className="poster-placeholder"/>}<div><strong>{item.title}</strong><small>{item.startDate ?? 'Data desconhecida'}</small></div></div></td>
-          <td>{item.year ?? '—'}</td><td>{item.episodes ?? '—'}</td><td><div className="tags">{item.genres.slice(0,3).map((g) => <span key={g}>{g}</span>)}{item.themes.slice(0,2).map((t) => <span className="theme" key={t}>{t}</span>)}</div></td>
-          <td><MalScoreCell item={item} onScore={updateMeanScore}/></td><td><b className="user-score">{item.userScore || '—'}</b></td><td><span className="progress">{item.watchedEpisodes}/{item.episodes ?? '?'}</span></td><td><span className={`status ${item.status}`}>{statusLabels[item.status]}</span></td><td><a href={item.url} target="_blank" rel="noreferrer" className="open"><ExternalLink size={16}/></a></td>
-        </tr>)}{filtered.length === 0 && <tr><td colSpan={9} className="empty">Nenhum anime encontrado com esses filtros.</td></tr>}</tbody></table></div>
-      </section>
+      {tab === 'explorer'
+        ? <Explorer anime={anime} username={loadedUsername} source={source} onScore={updateMeanScore}/>
+        : <FunZone anime={anime} username={loadedUsername || 'Minha lista'} source={source} onScore={updateMeanScore}/>
+      }
     </main>
-    <footer>MAL Sheet · MVP client-side para GitHub Pages · Lista via MyAnimeList · Notas via Jikan.</footer>
+
+    <footer>MAL Sheet · GitHub Pages + Cloudflare Worker · sem conta própria e sem banco de dados.</footer>
   </div>
-}
-
-function MalScoreCell({ item, onScore }: { item: AnimeItem; onScore: (id: number, score: number) => void }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const requested = useRef(false)
-
-  useEffect(() => {
-    if (item.meanScore !== null || requested.current) return
-    const element = ref.current
-    if (!element) return
-
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
-      observer.disconnect()
-      requested.current = true
-
-      void fetchAnimeMeanScore(item.id).then((score) => {
-        if (score !== null) onScore(item.id, score)
-      })
-    }, { rootMargin: '250px' })
-
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [item.id, item.meanScore, onScore])
-
-  return <span ref={ref} className="score"><Star size={14} fill="currentColor"/>{item.meanScore?.toFixed(2) ?? '—'}</span>
-}
-
-function SortHead({ label, value, current, onClick }: { label: string; value: SortKey; current: SortKey; onClick: (key: SortKey) => void }) {
-  return <th><button className={current === value ? 'sort active' : 'sort'} onClick={() => onClick(value)}>{label}<ArrowDownUp size={13}/></button></th>
 }
 
 export default App
