@@ -412,11 +412,15 @@ export async function fetchAnimeTitleAliases(items: AnimeItem[]): Promise<Map<nu
 
   if (!missing.length) return result
 
-  const fetched = await fetchTitleAliasPages([...new Set(missing)])
-  fetched.forEach((aliases, id) => {
-    const current = result.get(id) ?? []
-    result.set(id, [...new Set([...current, ...aliases])])
-  })
+  try {
+    const fetched = await fetchTitleAliasPages([...new Set(missing)])
+    fetched.forEach((aliases, id) => {
+      const current = result.get(id) ?? []
+      result.set(id, [...new Set([...current, ...aliases])])
+    })
+  } catch {
+    // Keep MAL titles and any aliases already cached if AniList is temporarily unavailable.
+  }
 
   return result
 }
