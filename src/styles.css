@@ -21,7 +21,7 @@
 @media(max-width:760px){.discovery-toolbar{align-items:stretch;flex-direction:column}.discovery-toolbar .secondary{justify-content:center}.discovery-toggle{align-items:flex-start}.discovery-toggle-meta span{display:none}.guess-suggestions{right:0;top:44px}.guess-input-row{position:relative}.guess-input-row .primary{min-width:92px}.main-tabs{max-width:100%;overflow-x:auto;justify-self:stretch;justify-content:flex-start}.main-tabs button{flex:0 0 auto}}
 
 /* AniGuessr mobile keyboard stability */
-html,body,#root{max-width:100%;overflow-x:hidden}.guess-panel,.guess-input-wrap,.guess-input-row{min-width:0}.guess-input-row input{min-width:0}
+html{min-height:100%}body{min-height:100%;overflow-y:auto}#root{min-height:100vh;max-width:100%}.app{overflow-x:clip}.guess-panel,.guess-input-wrap,.guess-input-row{min-width:0}.guess-input-row input{min-width:0}
 @media(max-width:760px){
   .guess-game{padding:14px;gap:14px;min-width:0;overflow:hidden}
   .guess-panel{width:100%;min-width:0}
@@ -41,4 +41,10 @@ html,body,#root{max-width:100%;overflow-x:hidden}.guess-panel,.guess-input-wrap,
   .guess-input-row{grid-template-columns:1fr}
   .guess-input-row .primary{width:100%}
   .guess-suggestions{max-height:190px}
+}
+
+@media(max-width:760px){
+  body{overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+  #root,.app,main,.fun-zone,.discovery-lab{height:auto;min-height:0}
+  .app{min-height:100vh}
 }
