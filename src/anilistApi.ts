@@ -3,6 +3,10 @@ import type { AnimeItem } from './types'
 const API = 'https://graphql.anilist.co'
 const CACHE_PREFIX = 'mal-sheet:discovery:'
 const CACHE_TTL = 6 * 60 * 60 * 1000
+const TITLE_CACHE_PREFIX = 'mal-sheet:title-aliases:'
+const TITLE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000
+const TITLE_IDS_PER_PAGE = 50
+const TITLE_PAGES_PER_REQUEST = 8
 
 export type DiscoveryAnime = {
   anilistId: number
@@ -49,6 +53,16 @@ type AniListMedia = {
 
 type GraphqlResponse = {
   data?: { Page?: { media?: AniListMedia[] | null } | null }
+  errors?: Array<{ message?: string; status?: number }>
+}
+
+type TitleMedia = {
+  idMal?: number | null
+  title?: { romaji?: string | null; english?: string | null; native?: string | null }
+}
+
+type TitleQueryResponse = {
+  data?: Record<string, { media?: TitleMedia[] | null } | null>
   errors?: Array<{ message?: string; status?: number }>
 }
 
@@ -296,4 +310,113 @@ export async function fetchDiscoveryAnime(items: AnimeItem[], username = 'guest'
 
   writeCache(cacheKey, normalized)
   return { items: normalized, profile }
+}
+
+
+function readTitleAliasCache(id: number): string[] | null {
+  try {
+    const raw = localStorage.getItem(`${TITLE_CACHE_PREFIX}${id}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { savedAt: number; aliases: string[] }
+    if (!Array.isArray(parsed.aliases) || Date.now() - parsed.savedAt > TITLE_CACHE_TTL) {
+      localStorage.removeItem(`${TITLE_CACHE_PREFIX}${id}`)
+      return null
+    }
+    return parsed.aliases
+  } catch {
+    return null
+  }
+}
+
+function writeTitleAliasCache(id: number, aliases: string[]) {
+  try {
+    localStorage.setItem(`${TITLE_CACHE_PREFIX}${id}`, JSON.stringify({ savedAt: Date.now(), aliases }))
+  } catch {
+    // Title cache is optional.
+  }
+}
+
+function titleAliases(media: TitleMedia) {
+  return [...new Set([
+    media.title?.english,
+    media.title?.romaji,
+    media.title?.native,
+  ].filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))]
+}
+
+async function fetchTitleAliasPages(ids: number[]): Promise<Map<number, string[]>> {
+  const pages: number[][] = []
+  for (let index = 0; index < ids.length; index += TITLE_IDS_PER_PAGE) {
+    pages.push(ids.slice(index, index + TITLE_IDS_PER_PAGE))
+  }
+
+  const result = new Map<number, string[]>()
+
+  for (let groupStart = 0; groupStart < pages.length; groupStart += TITLE_PAGES_PER_REQUEST) {
+    const group = pages.slice(groupStart, groupStart + TITLE_PAGES_PER_REQUEST)
+    const declarations = group.map((_, index) => `$ids${index}: [Int]`).join(', ')
+    const fields = group.map((_, index) => `
+      p${index}: Page(page: 1, perPage: ${TITLE_IDS_PER_PAGE}) {
+        media(type: ANIME, idMal_in: $ids${index}) {
+          idMal
+          title { romaji english native }
+        }
+      }
+    `).join('\n')
+
+    const query = `query TitleAliases(${declarations}) { ${fields} }`
+    const variables = Object.fromEntries(group.map((pageIds, index) => [`ids${index}`, pageIds]))
+
+    const response = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    })
+
+    if (response.status === 429) {
+      throw new Error('A AniList atingiu o limite de consultas ao carregar títulos alternativos.')
+    }
+    if (!response.ok) {
+      throw new Error(`A AniList respondeu com erro ${response.status} ao carregar títulos alternativos.`)
+    }
+
+    const payload = (await response.json()) as TitleQueryResponse
+    if (payload.errors?.length) {
+      throw new Error(payload.errors[0]?.message || 'A AniList retornou um erro ao carregar títulos alternativos.')
+    }
+
+    Object.values(payload.data ?? {}).forEach((page) => {
+      ;(page?.media ?? []).forEach((media) => {
+        if (!media.idMal) return
+        const aliases = titleAliases(media)
+        if (!aliases.length) return
+        result.set(media.idMal, aliases)
+        writeTitleAliasCache(media.idMal, aliases)
+      })
+    })
+  }
+
+  return result
+}
+
+export async function fetchAnimeTitleAliases(items: AnimeItem[]): Promise<Map<number, string[]>> {
+  const result = new Map<number, string[]>()
+  const missing: number[] = []
+
+  items.forEach((item) => {
+    const cached = readTitleAliasCache(item.id)
+    const current = [...new Set([item.title, ...(item.aliases ?? []), ...(cached ?? [])].filter(Boolean))]
+    result.set(item.id, current)
+    if (!cached) missing.push(item.id)
+  })
+
+  if (!missing.length) return result
+
+  const fetched = await fetchTitleAliasPages([...new Set(missing)])
+  fetched.forEach((aliases, id) => {
+    const current = result.get(id) ?? []
+    result.set(id, [...new Set([...current, ...aliases])])
+  })
+
+  return result
 }
