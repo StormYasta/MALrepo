@@ -3,6 +3,7 @@ export type WatchStatus = 'watching' | 'completed' | 'on_hold' | 'dropped' | 'pl
 export interface AnimeItem {
   id: number
   title: string
+  aliases?: string[]
   image: string
   startDate: string | null
   year: number | null
