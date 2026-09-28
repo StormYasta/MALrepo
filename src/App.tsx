@@ -149,7 +149,7 @@ function App() {
       <div className="header-actions">
         {!installed && installPrompt && <button className="install-app" onClick={installApp}><Download size={15}/> Instalar app</button>}
         {installed && <span className="installed-badge"><Check size={13}/> Instalado</span>}
-        <a className="github" href="https://github.com/StormYasta/MALrepo" target="_blank" rel="noreferrer">GitHub</a>
+        <span className="project-badge">Open source</span>
       </div>
     </header>
 
@@ -157,7 +157,7 @@ function App() {
       <section className="load-strip">
         <div><span className="eyebrow">LISTA ATIVA</span><strong>{loadedLabel}</strong><small>{anime.length} títulos carregados</small>{source === 'mal' && <span className="url-profile-badge">URL vinculada</span>}</div>
         <div className="load-form">
-          <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="Kerbus ou link da lista do MyAnimeList" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
+          <input value={listInput} onChange={(e) => setListInput(e.target.value)} placeholder="animefan ou link da lista do MyAnimeList" onKeyDown={(e) => e.key === 'Enter' && loadList()}/>
           <button className="primary compact" onClick={() => loadList()} disabled={loading}>{loading ? <LoaderCircle className="spin" size={17}/> : null}{loading ? 'Carregando...' : 'Carregar lista'}</button>
           {source === 'mal' && <button className="secondary profile-link" onClick={copyProfileUrl}>{linkCopied ? <Check size={15}/> : <Link2 size={15}/>} {linkCopied ? 'Copiado' : 'Minha URL'}</button>}
         </div>
