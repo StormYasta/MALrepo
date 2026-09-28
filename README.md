@@ -8,7 +8,7 @@ MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos
 
 ### Explorer
 
-- Tabela pesquisável e filtrável por título, gênero, status, ano, episódios e nota pessoal
+- Tabela pesquisável e filtrável por título em inglês, romaji ou japonês, além de gênero, status, ano, episódios e nota pessoal
 - Nota MAL enriquecida pela Jikan, com cache local
 - Coluna Δ para comparar sua nota com a média MAL
 - Presets rápidos: curto pra hoje, só pedrada, clássicos e fila
@@ -29,7 +29,7 @@ MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos
 
 ### Jogos
 
-- **AniGuessr** com histórico de tentativas, autocomplete, pistas, pontos e streak
+- **AniGuessr** com histórico de tentativas, autocomplete multilíngue (inglês, romaji e japonês), pistas, pontos e streak
 - Modos Meu histórico, Minha fila e Descoberta
 - Blur progressivo mais leve na capa
 - **Descoberta personalizada** recolhível, usando AniList e excluindo os MAL IDs já existentes
@@ -69,7 +69,7 @@ O ranking considera:
 - quantidade de episódios em relação ao histórico
 - popularidade como critério secundário
 
-Os resultados da AniList ficam em cache no navegador por algumas horas para reduzir chamadas externas.
+Os resultados da AniList ficam em cache no navegador por algumas horas para reduzir chamadas externas. Os títulos alternativos são enriquecidos em lote e mantidos em cache local por 30 dias, permitindo pesquisar e responder usando inglês, romaji ou japonês.
 
 ## Instalação como aplicativo (PWA)
 
