@@ -62,8 +62,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    void enrichTitles(mockAnime)
-  }, [enrichTitles])
+    if (!initialUser) void enrichTitles(mockAnime)
+  }, [enrichTitles, initialUser])
 
   useEffect(() => {
     if (initialLoadStarted.current) return
