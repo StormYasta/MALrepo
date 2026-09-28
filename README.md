@@ -12,7 +12,7 @@ MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos
 - Presets rápidos: curto pra hoje, só pedrada, clássicos e fila
 - Favoritos e blacklist locais
 - Compartilhamento da visão por URL, incluindo usuário e filtros
-- Perfil embutido na URL: `?user=Kerbus` carrega a lista automaticamente
+- Perfil embutido na URL: `?user=animefan` carrega a lista automaticamente
 - O último usuário também pode ser lembrado localmente no navegador
 
 ### Diversão
@@ -40,13 +40,13 @@ MVP client-side para explorar uma lista pública do MyAnimeList, descobrir novos
 Depois que uma lista é carregada, o username fica na própria URL:
 
 ```text
-https://stormyasta.github.io/MALrepo/?user=Kerbus#explorer
+https://seu-usuario.github.io/MALrepo/?user=animefan#explorer
 ```
 
 ou diretamente na aba Diversão:
 
 ```text
-https://stormyasta.github.io/MALrepo/?user=Kerbus#diversao
+https://seu-usuario.github.io/MALrepo/?user=animefan#diversao
 ```
 
 Ao abrir esse endereço, o MAL Sheet carrega a lista automaticamente. Não existe login ou sessão no servidor: o username é apenas uma referência pública na URL.
@@ -94,13 +94,13 @@ npm run dev
 Na interface, informe apenas o username do MyAnimeList:
 
 ```text
-StormYasta
+animefan
 ```
 
 ou cole a URL completa da lista:
 
 ```text
-https://myanimelist.net/animelist/StormYasta
+https://myanimelist.net/animelist/animefan
 ```
 
 A aplicação extrai o username e consulta o endpoint público usado pelo próprio MyAnimeList através do Cloudflare Worker restrito do projeto. Nenhuma credencial do usuário é armazenada.
@@ -109,7 +109,7 @@ A aplicação extrai o username e consulta o endpoint público usado pelo própr
 
 O workflow em `.github/workflows/deploy.yml` gera o projeto e publica a pasta `dist`. Nas configurações do repositório, em **Settings > Pages**, selecione **GitHub Actions** como source caso ainda não esteja selecionado.
 
-A URL esperada é `https://stormyasta.github.io/MALrepo/`.
+A URL esperada é `https://seu-usuario.github.io/MALrepo/`.
 
 ## Proxy da lista do MAL
 
