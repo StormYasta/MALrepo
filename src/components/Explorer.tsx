@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownUp, Ban, Bookmark, Check, Copy, ExternalLink, Filter, Search, SlidersHorizontal, Star, X } from 'lucide-react'
 import { fetchAnimeMeanScore } from '../jikanScores'
+import { animeSearchText, normalizeSearchText } from '../search'
 import { getBlacklist, getFavorites, toggleBlacklist, toggleFavorite } from '../storage'
 import type { AnimeItem, SortDirection, SortKey, WatchStatus } from '../types'
 
@@ -35,9 +36,10 @@ export function Explorer({ anime, username, source, onScore }: Props) {
   const genres = useMemo(() => [...new Set(anime.flatMap((item) => item.genres))].sort(), [anime])
 
   const filtered = useMemo(() => {
+    const query = normalizeSearchText(search)
     const result = anime.filter((item) => {
-      const text = `${item.title} ${item.genres.join(' ')} ${item.themes.join(' ')}`.toLowerCase()
-      if (search && !text.includes(search.toLowerCase())) return false
+      const text = animeSearchText(item)
+      if (query && !text.includes(query)) return false
       if (genre !== 'all' && !item.genres.includes(genre)) return false
       if (status !== 'all' && item.status !== status) return false
       if (yearFrom && (item.year ?? 0) < Number(yearFrom)) return false
@@ -115,7 +117,7 @@ export function Explorer({ anime, username, source, onScore }: Props) {
     </div>
 
     <div className="toolbar">
-      <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar título, gênero ou tag..."/></div>
+      <div className="search"><Search size={18}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar em inglês, japonês, gênero ou tag..."/></div>
       <div className="filter-label"><SlidersHorizontal size={17}/> Filtros</div>
       <select value={genre} onChange={(e) => setGenre(e.target.value)}><option value="all">Todos os gêneros</option>{genres.map((g) => <option key={g}>{g}</option>)}</select>
       <select value={status} onChange={(e) => setStatus(e.target.value as 'all' | WatchStatus)}><option value="all">Todos os status</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
