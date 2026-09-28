@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Compass, Download, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
+import { BarChart3, Check, Compass, Download, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
 import { Explorer } from './components/Explorer'
-import { FunZone } from './components/FunZone'
+import { GamesZone } from './components/GamesZone'
+import { StatsZone } from './components/StatsZone'
 import { readCachedMeanScore } from './jikanScores'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
@@ -17,7 +18,9 @@ function getUrlUser() {
 }
 
 function getHashTab(): AppTab {
-  return window.location.hash === '#diversao' ? 'fun' : 'explorer'
+  if (window.location.hash === '#estatisticas') return 'stats'
+  if (window.location.hash === '#jogos' || window.location.hash === '#diversao') return 'games'
+  return 'explorer'
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -81,7 +84,7 @@ function App() {
   function canonicalUrl(username: string, nextTab = tab) {
     const url = new URL(window.location.href)
     url.searchParams.set('user', username)
-    url.hash = nextTab === 'fun' ? 'diversao' : 'explorer'
+    url.hash = nextTab === 'stats' ? 'estatisticas' : nextTab === 'games' ? 'jogos' : 'explorer'
     return url
   }
 
@@ -89,7 +92,7 @@ function App() {
     setTab(next)
     const url = new URL(window.location.href)
     if (loadedUsername) url.searchParams.set('user', loadedUsername)
-    url.hash = next === 'fun' ? 'diversao' : 'explorer'
+    url.hash = next === 'stats' ? 'estatisticas' : next === 'games' ? 'jogos' : 'explorer'
     window.history.replaceState({}, '', url)
   }
 
@@ -108,7 +111,7 @@ function App() {
 
       const url = new URL(window.location.href)
       url.searchParams.set('user', username)
-      if (!url.hash) url.hash = tab === 'fun' ? 'diversao' : 'explorer'
+      if (!url.hash) url.hash = tab === 'stats' ? 'estatisticas' : tab === 'games' ? 'jogos' : 'explorer'
       window.history.replaceState({}, '', url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar a lista.')
@@ -144,7 +147,8 @@ function App() {
       <div className="brand"><div className="logo">M</div><div><strong>MAL Sheet</strong><span>Sua lista, do seu jeito.</span></div></div>
       <nav className="main-tabs" aria-label="Áreas do MAL Sheet">
         <button className={tab === 'explorer' ? 'active' : ''} onClick={() => changeTab('explorer')}><Compass size={16}/> Explorer</button>
-        <button className={tab === 'fun' ? 'active' : ''} onClick={() => changeTab('fun')}><Gamepad2 size={16}/> Diversão</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => changeTab('stats')}><BarChart3 size={16}/> Estatísticas</button>
+        <button className={tab === 'games' ? 'active' : ''} onClick={() => changeTab('games')}><Gamepad2 size={16}/> Jogos</button>
       </nav>
       <div className="header-actions">
         {!installed && installPrompt && <button className="install-app" onClick={installApp}><Download size={15}/> Instalar app</button>}
@@ -165,10 +169,10 @@ function App() {
         {source === 'mal' && <div className="profile-hint">Ao abrir esta URL novamente, <b>{loadedUsername}</b> é carregado automaticamente. Neste navegador, o último usuário também fica lembrado localmente.</div>}
       </section>
 
-      {tab === 'explorer'
-        ? <Explorer anime={anime} username={loadedUsername} source={source} onScore={updateMeanScore}/>
-        : <FunZone anime={anime} username={loadedUsername || 'Minha lista'} source={source} onScore={updateMeanScore}/>
-      }
+      {tab === 'explorer' && <Explorer anime={anime} username={loadedUsername} source={source} onScore={updateMeanScore}/>}
+      {tab === 'stats' && <StatsZone anime={anime} username={loadedUsername || 'Minha lista'} source={source} onScore={updateMeanScore}/>}
+      {tab === 'games' && <GamesZone anime={anime} username={loadedUsername || 'Minha lista'} source={source}/>}
+
     </main>
 
     <footer>MAL Sheet · GitHub Pages + Cloudflare Worker · sem conta própria e sem banco de dados.</footer>
