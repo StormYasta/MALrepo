@@ -45,6 +45,58 @@ function randomOne<T extends { key: string }>(items: T[], except?: string): T | 
   return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null
 }
 
+function seriesBaseTitle(title: string) {
+  let value = title.trim()
+
+  const seasonPatterns = [
+    /\s*[:\-–—]?\s*(?:the\s+)?final\s+season(?:\s+part\s+\d+)?\b.*$/i,
+    /\s*[:\-–—]?\s*\d+(?:st|nd|rd|th)\s+season\b.*$/i,
+    /\s*[:\-–—]?\s*season\s*\d+\b.*$/i,
+    /\s*[:\-–—]?\s*(?:part|cour)\s*\d+\b.*$/i,
+    /\s*[:\-–—]?\s*s\d+\b.*$/i,
+  ]
+
+  for (const pattern of seasonPatterns) {
+    value = value.replace(pattern, '').trim()
+  }
+
+  return value || title.trim()
+}
+
+function aggregateBySeries(items: GuessTarget[]): GuessTarget[] {
+  const groups = new Map<string, GuessTarget[]>()
+
+  items.forEach((item) => {
+    const base = seriesBaseTitle(item.title)
+    const key = normalizeGuess(base)
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  })
+
+  return [...groups.entries()].map(([baseKey, group]) => {
+    const ordered = [...group].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999))
+    const representative = ordered[0]
+    const baseTitle = seriesBaseTitle(representative.title)
+    const aliases = [...new Set(group.flatMap((item) => [item.title, ...item.aliases, seriesBaseTitle(item.title)]).filter(Boolean))]
+    const knownEpisodes = group.map((item) => item.episodes).filter((value): value is number => typeof value === 'number' && value > 0)
+    const meanScores = group.map((item) => item.score).filter((value): value is number => typeof value === 'number')
+    const userScores = group.map((item) => item.userScore).filter((value): value is number => typeof value === 'number')
+    const matches = group.map((item) => item.match).filter((value): value is number => typeof value === 'number')
+
+    return {
+      ...representative,
+      key: `series-${representative.source}-${baseKey}`,
+      title: baseTitle,
+      aliases,
+      episodes: knownEpisodes.length ? knownEpisodes.reduce((sum, value) => sum + value, 0) : null,
+      genres: [...new Set(group.flatMap((item) => item.genres))],
+      tags: [...new Set(group.flatMap((item) => item.tags))],
+      score: meanScores.length ? meanScores.reduce((sum, value) => sum + value, 0) / meanScores.length : null,
+      userScore: userScores.length ? userScores.reduce((sum, value) => sum + value, 0) / userScores.length : null,
+      match: matches.length ? Math.round(matches.reduce((sum, value) => sum + value, 0) / matches.length) : null,
+    }
+  })
+}
+
 function animeToGuess(item: AnimeItem, source: GuessMode): GuessTarget {
   return {
     key: `mal-${item.id}`,
@@ -107,9 +159,9 @@ export function DiscoveryLab({ anime, username }: Props) {
   const [message, setMessage] = useState('')
   const [stats, setStats] = useState<GuessStats>(() => loadGuessStats())
 
-  const historyPool = useMemo(() => anime.filter((item) => item.status !== 'plan_to_watch').map((item) => animeToGuess(item, 'history')), [animeKey])
-  const queuePool = useMemo(() => anime.filter((item) => item.status === 'plan_to_watch').map((item) => animeToGuess(item, 'queue')), [animeKey])
-  const discoveryPool = useMemo(() => discoveries.filter((item) => !blacklist.has(item.idMal)).map(discoveryToGuess), [discoveries, blacklist])
+  const historyPool = useMemo(() => aggregateBySeries(anime.filter((item) => item.status !== 'plan_to_watch').map((item) => animeToGuess(item, 'history'))), [animeKey])
+  const queuePool = useMemo(() => aggregateBySeries(anime.filter((item) => item.status === 'plan_to_watch').map((item) => animeToGuess(item, 'queue'))), [animeKey])
+  const discoveryPool = useMemo(() => aggregateBySeries(discoveries.filter((item) => !blacklist.has(item.idMal)).map(discoveryToGuess)), [discoveries, blacklist])
   const visibleDiscoveries = useMemo(() => discoveries.filter((item) => !blacklist.has(item.idMal)).slice(0, 8), [discoveries, blacklist])
 
   const activePool = mode === 'history' ? historyPool : mode === 'queue' ? queuePool : discoveryPool
@@ -285,7 +337,7 @@ export function DiscoveryLab({ anime, username }: Props) {
     </section>
 
     <div className="section-heading guess-heading">
-      <div><span className="eyebrow">ANIGUESSR</span><h2>Adivinhe usando sua própria lista</h2><p className="section-copy">As sugestões do campo respeitam o modo atual. Cada erro e cada pista reduzem a pontuação da rodada.</p></div>
+      <div><span className="eyebrow">ANIGUESSR</span><h2>Adivinhe usando sua própria lista</h2><p className="section-copy">Temporadas e partes explícitas são agrupadas como uma única série. As sugestões respeitam o modo atual, e cada erro ou pista reduz a pontuação.</p></div>
       <div className="guess-stats"><span>Streak <b>{streak}</b></span><span>Sessão <b>{sessionScore.toLocaleString('pt-BR')}</b></span><span>Recorde <b>{stats.bestStreak}</b></span></div>
     </div>
 
@@ -305,7 +357,7 @@ export function DiscoveryLab({ anime, username }: Props) {
         <div className="guess-panel">
           <div className="clue-list">
             <Clue unlocked={clueLevel >= 1 || Boolean(result)} label="Ano" value={target.year?.toString() ?? 'desconhecido'}/>
-            <Clue unlocked={clueLevel >= 2 || Boolean(result)} label="Episódios" value={target.episodes?.toString() ?? 'desconhecido'}/>
+            <Clue unlocked={clueLevel >= 2 || Boolean(result)} label="Episódios" value={target.episodes ? `${target.episodes} no conjunto` : 'desconhecido'}/>
             <Clue unlocked={clueLevel >= 3 || Boolean(result)} label="Gêneros" value={target.genres.slice(0,4).join(' · ') || 'sem dados'}/>
             <Clue unlocked={clueLevel >= 4 || Boolean(result)} label={target.source === 'discovery' ? 'Estúdio / tags' : 'Notas'} value={target.source === 'discovery' ? [target.studio, ...target.tags.slice(0,2)].filter(Boolean).join(' · ') || 'sem dados' : `MAL ${target.score?.toFixed(1) ?? '—'} · sua ${target.userScore ?? '—'}`}/>
             <Clue unlocked={clueLevel >= 5 || Boolean(result)} label={target.source === 'discovery' ? 'Última pista' : 'Origem'} value={target.source === 'discovery' ? target.description.slice(0,180) || `${target.match ?? '—'}% de compatibilidade` : target.source === 'queue' ? 'Está no seu Plan to Watch' : 'Faz parte do seu histórico'}/>
