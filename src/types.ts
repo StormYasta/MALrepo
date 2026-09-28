@@ -18,4 +18,4 @@ export interface AnimeItem {
 
 export type SortKey = 'title' | 'year' | 'episodes' | 'meanScore' | 'userScore' | 'delta' | 'progress'
 export type SortDirection = 'asc' | 'desc'
-export type AppTab = 'explorer' | 'fun'
+export type AppTab = 'explorer' | 'stats' | 'games'
