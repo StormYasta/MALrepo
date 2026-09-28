@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Award, Check, Download, Gamepad2, RefreshCw, Sparkles, Swords, Trophy } from 'lucide-react'
+import { DiscoveryLab } from './DiscoveryLab'
 import { fetchAnimeMeanScore } from '../jikanScores'
 import { fetchUserAnimeList } from '../malApi'
 import { getBlacklist, getFavorites, loadChallenge, saveChallenge } from '../storage'
@@ -245,6 +246,8 @@ export function FunZone({ anime, username, source, onScore }: Props) {
       <div><span className="eyebrow light">MAL SHEET · DIVERSÃO · {source === 'demo' ? 'DEMO' : username}</span><h2>Transforme sua lista em um playground.</h2><p>Estatísticas, decisões impossíveis, desafios e opiniões questionáveis — tudo calculado localmente no seu navegador.</p></div>
       <div className="hero-stats"><div><b>{completed.length}</b><span>completos</span></div><div><b>{watchTime.days}</b><span>dias estimados</span></div><div><b>{avgUser ? avgUser.toFixed(1) : '—'}</b><span>sua média</span></div><div><b>{favorites.size}</b><span>favoritos locais</span></div></div>
     </section>
+
+    <DiscoveryLab anime={anime} username={username}/>
 
     <section className="fun-section">
       <div className="section-heading"><div><span className="eyebrow">COMECE POR AQUI</span><h2>Decida o que assistir</h2></div></div>
