@@ -66,6 +66,7 @@ export function FunZone({ anime, username, source, onScore }: Props) {
   const [enriching, setEnriching] = useState(false)
   const [bingoMarked, setBingoMarked] = useState<Set<number>>(() => new Set())
   const [challenge, setChallenge] = useState(() => loadChallenge())
+  const animeKey = useMemo(() => anime.map((item) => item.id).join(','), [anime])
 
   useEffect(() => {
     const pool = shuffle(anime.filter((a) => a.status === 'completed' && a.userScore !== null)).slice(0, 12)
@@ -75,7 +76,7 @@ export function FunZone({ anime, username, source, onScore }: Props) {
     setBattleWins(0)
     setRoulette(null)
     setSurprise(null)
-  }, [anime])
+  }, [animeKey])
 
   const favorites = useMemo(() => getFavorites(), [anime])
   const blacklist = useMemo(() => getBlacklist(), [anime])
