@@ -1,6 +1,7 @@
 import type { AnimeItem } from './types'
 
-export function normalizeSearchText(value: string) {
+export function normalizeSearchText(value: unknown) {
+  if (typeof value !== 'string') return ''
   return value
     .normalize('NFKC')
     .normalize('NFD')
@@ -11,7 +12,11 @@ export function normalizeSearchText(value: string) {
 }
 
 export function animeTitleAliases(item: AnimeItem) {
-  return [...new Set([item.title, ...(item.aliases ?? [])].filter(Boolean))]
+  return [...new Set(
+    [item.title, ...(Array.isArray(item.aliases) ? item.aliases : [])]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => value.trim()),
+  )]
 }
 
 export function animeSearchText(item: AnimeItem) {
