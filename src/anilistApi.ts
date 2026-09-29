@@ -341,7 +341,9 @@ function titleAliases(media: TitleMedia) {
     media.title?.english,
     media.title?.romaji,
     media.title?.native,
-  ].filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))]
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim()))]
 }
 
 async function fetchTitleAliasPages(ids: number[]): Promise<Map<number, string[]>> {
