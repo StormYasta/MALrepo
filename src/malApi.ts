@@ -41,7 +41,7 @@ function normalizeNames(value: unknown): string[] {
       if (typeof item === 'string') return [item.trim()]
       if (item && typeof item === 'object' && 'name' in item) {
         const name = (item as MalNamedResource).name
-        return name ? [name.trim()] : []
+        return typeof name === 'string' && name.trim() ? [name.trim()] : []
       }
       return []
     }).filter(Boolean))]
@@ -77,12 +77,13 @@ function parseYear(entry: MalListEntry): number | null {
 }
 
 function normalize(entry: MalListEntry): AnimeItem | null {
-  if (!entry.anime_id || !entry.anime_title) return null
+  if (!entry.anime_id || typeof entry.anime_title !== 'string' || !entry.anime_title.trim()) return null
+  const title = entry.anime_title.trim()
 
   return {
     id: entry.anime_id,
-    title: entry.anime_title,
-    aliases: [entry.anime_title],
+    title,
+    aliases: [title],
     image: entry.anime_image_path ?? '',
     startDate: entry.anime_start_date_string ?? null,
     year: parseYear(entry),
