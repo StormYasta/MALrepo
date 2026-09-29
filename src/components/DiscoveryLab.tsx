@@ -41,7 +41,8 @@ function randomOne<T extends { key: string }>(items: T[], except?: string): T | 
   return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null
 }
 
-function seriesBaseTitle(title: string) {
+function seriesBaseTitle(title: unknown) {
+  if (typeof title !== 'string') return ''
   let value = title.trim()
 
   const seasonPatterns = [
@@ -65,6 +66,7 @@ function aggregateBySeries(items: GuessTarget[]): GuessTarget[] {
   items.forEach((item) => {
     const base = seriesBaseTitle(item.title)
     const key = normalizeGuess(base)
+    if (!key) return
     groups.set(key, [...(groups.get(key) ?? []), item])
   })
 
@@ -72,7 +74,12 @@ function aggregateBySeries(items: GuessTarget[]): GuessTarget[] {
     const ordered = [...group].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999))
     const representative = ordered[0]
     const baseTitle = seriesBaseTitle(representative.title)
-    const aliases = [...new Set(group.flatMap((item) => [item.title, ...item.aliases, seriesBaseTitle(item.title)]).filter(Boolean))]
+    const aliases = [...new Set(
+      group
+        .flatMap((item) => [item.title, ...(Array.isArray(item.aliases) ? item.aliases : []), seriesBaseTitle(item.title)])
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map((value) => value.trim()),
+    )]
     const knownEpisodes = group.map((item) => item.episodes).filter((value): value is number => typeof value === 'number' && value > 0)
     const meanScores = group.map((item) => item.score).filter((value): value is number => typeof value === 'number')
     const userScores = group.map((item) => item.userScore).filter((value): value is number => typeof value === 'number')
