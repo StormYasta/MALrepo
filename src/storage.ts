@@ -4,6 +4,9 @@ const CHALLENGE_KEY = 'mal-sheet:challenge-3x3'
 const DISCOVERY_QUEUE_KEY = 'mal-sheet:discovery-queue'
 const LAST_USER_KEY = 'mal-sheet:last-user'
 const GUESS_STATS_KEY = 'mal-sheet:aniguessr-stats'
+const THEME_KEY = 'mal-sheet:theme'
+
+export type ThemePreference = 'light' | 'dark'
 
 function readNumberSet(key: string): Set<number> {
   try {
@@ -59,6 +62,20 @@ export function setLastUser(username: string) {
   } catch {
     // Remembering the user is optional.
   }
+}
+
+export function getThemePreference(): ThemePreference {
+  try {
+    const saved = localStorage.getItem(THEME_KEY)
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch {
+    // Fall back to the operating system preference.
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+export function setThemePreference(theme: ThemePreference) {
+  try { localStorage.setItem(THEME_KEY, theme) } catch { /* optional */ }
 }
 
 export type GuessStats = {
