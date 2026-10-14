@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, Check, Compass, Download, Gamepad2, Link2, LoaderCircle } from 'lucide-react'
+import { BarChart3, Check, Compass, Download, Gamepad2, Link2, LoaderCircle, Moon, Sun } from 'lucide-react'
 import { fetchAnimeTitleAliases } from './anilistApi'
 import { Explorer } from './components/Explorer'
 import { GamesZone } from './components/GamesZone'
@@ -7,7 +7,7 @@ import { StatsZone } from './components/StatsZone'
 import { readCachedMeanScore } from './jikanScores'
 import { fetchUserAnimeList } from './malApi'
 import { mockAnime } from './mockData'
-import { getLastUser, setLastUser } from './storage'
+import { getLastUser, getThemePreference, setLastUser, setThemePreference, type ThemePreference } from './storage'
 import type { AnimeItem, AppTab } from './types'
 
 function hydrateCachedScores(items: AnimeItem[]) {
@@ -38,6 +38,7 @@ function App() {
   const [error, setError] = useState('')
   const [source, setSource] = useState<'demo' | 'mal'>('demo')
   const [tab, setTab] = useState<AppTab>(getHashTab)
+  const [theme, setTheme] = useState<ThemePreference>(getThemePreference)
   const [linkCopied, setLinkCopied] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches)
@@ -60,6 +61,14 @@ function App() {
       // Alternative titles are an enhancement; the MAL list remains usable without them.
     }
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = theme
+    setThemePreference(theme)
+    const metaThemeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    if (metaThemeColor) metaThemeColor.content = theme === 'dark' ? '#0b1020' : '#172554'
+  }, [theme])
 
   useEffect(() => {
     if (!initialUser) void enrichTitles(mockAnime)
@@ -111,6 +120,10 @@ function App() {
     if (loadedUsername) url.searchParams.set('user', loadedUsername)
     url.hash = next === 'stats' ? 'estatisticas' : next === 'games' ? 'jogos' : 'explorer'
     window.history.replaceState({}, '', url)
+  }
+
+  function toggleTheme() {
+    setTheme((current) => current === 'dark' ? 'light' : 'dark')
   }
 
   async function loadList(inputOverride?: string) {
@@ -169,6 +182,9 @@ function App() {
         <button className={tab === 'games' ? 'active' : ''} onClick={() => changeTab('games')}><Gamepad2 size={16}/> Jogos</button>
       </nav>
       <div className="header-actions">
+        <button className="theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'} aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}>
+          {theme === 'dark' ? <Sun size={16}/> : <Moon size={16}/>}<span>{theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+        </button>
         {!installed && installPrompt && <button className="install-app" onClick={installApp}><Download size={15}/> Instalar app</button>}
         {installed && <span className="installed-badge"><Check size={13}/> Instalado</span>}
         <span className="project-badge">Open source</span>
@@ -190,7 +206,6 @@ function App() {
       {tab === 'explorer' && <Explorer anime={anime} username={loadedUsername} source={source} onScore={updateMeanScore}/>}
       {tab === 'stats' && <StatsZone anime={anime} username={loadedUsername || 'Minha lista'} source={source} onScore={updateMeanScore}/>}
       {tab === 'games' && <GamesZone anime={anime} username={loadedUsername || 'Minha lista'} source={source}/>}
-
     </main>
 
     <footer>MAL Sheet · GitHub Pages + Cloudflare Worker · sem conta própria e sem banco de dados.</footer>
