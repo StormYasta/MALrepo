@@ -4,12 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#172554" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="application-name" content="MAL Sheet" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MAL Sheet" />
     <link rel="icon" type="image/png" href="/MALrepo/pwa-192x192.png" />
     <link rel="apple-touch-icon" href="/MALrepo/pwa-192x192.png" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem('mal-sheet:theme')
+          const theme = saved === 'light' || saved === 'dark'
+            ? saved
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = theme
+          const meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b1020' : '#172554')
+        } catch {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
     <title>MAL Sheet</title>
   </head>
   <body>
